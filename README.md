@@ -1,10 +1,11 @@
 # Allosteric and Energetic Remodeling by Protein Domain Extensions
 Welcome to the GitHub repository for the following publication: Allosteric and Energetic Remodeling by Protein Domain Extensions (Cristina Hidalgo-Carcedo, Andre J. Faure, Aina Martí-Aranda, Taraneh Zarin and Ben Lehner 2025).
-
 Here you'll find source code for computational analyses and to reproduce the figures in the paper.
-Please download and untar/unzip the required data directory from https://doi.org/10.5281/zenodo.16411462
 
-This code was last run and tested on: R version 4.5.0 (2025-04-11)
+Please download and untar/unzip the required data from https://doi.org/10.5281/zenodo.16411462 to your "base_dir" folder for running the analysis
+
+The code is ran on RMarkdown
+This code was last run and  tested with Mac OSX and with R version 4.5.0 (2025-04-11)
 
 The following packages are required (package_version):
 - data.table_1.17.2
@@ -17,4 +18,4 @@ The following packages are required (package_version):
 - GGally_2.2.1
 - Cairo_1.6-2
 - ggrastr_1.0.2
-- 
+
