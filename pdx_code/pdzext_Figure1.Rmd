@@ -66,8 +66,6 @@ upper_fn <- function(data, mapping, ...) {
     coord_cartesian(xlim = shared_limits, ylim = shared_limits)
 }
 
-
-
 for (pca_assay in pca_assays) {
   for (library in libraries) {
     name <- paste0(library, pca_assay, "_fitness_replicates")
@@ -116,10 +114,6 @@ ggplot(dt[mut_type != ""], aes(x = fitness, color = mut_type_plot)) +
   labs(x = "Fitness", y = "Density", fill = "Mutation Type")
 
 ggsave("Data_pdzext/output_pdzext/Fig_1d.pdf", width=15, height=10)
-
-
-
-
 ```
 
 #modify the table adding new columns for heatmap in Extended Data Fig. 1a:
@@ -226,7 +220,6 @@ ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_1a_",pca_assay_value,library_
     }
 ```
 
-
 ```{r}
 # Function to compare with wt and identify mutations
 find_mutated <- function(aa_seq_, wt) {
@@ -283,6 +276,4 @@ ggsave(filename = "Data_pdzext/output_pdzext/Suppl_Fig_1c_aPCA.pdf", plot = p1, 
 p2 <- make_ddPCA_plot("Binding", "binding", "fitness_bPCA", "Fitness bPCA")
 print(p2)
 ggsave(filename = "Data_pdzext/output_pdzext/Suppl_Fig_1c_bPCA.pdf", plot = p2, width = 4, height = 4)
-
 ```
-
