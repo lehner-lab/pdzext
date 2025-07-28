@@ -5,7 +5,7 @@ date: "2025-07-28"
 ---
 
 ```{r setup}
-base_dir<-"base_dir/"
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -93,8 +93,6 @@ global_ylim <- range(all_values, na.rm = TRUE)
 y_margin <- 0.1 * diff(global_ylim)
 global_ylim_extended <- c(global_ylim[1] - y_margin, global_ylim[2] + y_margin)
 
-# Loop and generate plots
-# Loop and generate plots
 for (cfg in plot_configs) {
   data <- cfg$data[Dataset == cfg$dataset]
 
@@ -326,9 +324,6 @@ for (assay in assays) {
   
   name2 <- paste0("raw_list_",assay)
     dt2 <- get(name2)
-   
-  
-
 
 p<-ggplot(subset_dt, aes(x=total_mean_kcal_mol, y=dataset))+
 
@@ -339,24 +334,19 @@ geom_jitter(aes(color=class), size = 1, alpha = 0.3,width = 0.005,height = 0.15)
   ) +
  geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.2) +
   scale_x_continuous(limits = c(-2, 3.1))+
-  
-     # Add one vertical line per dataset
-    geom_vline(
+    geom_vline(# Add one vertical line per dataset
       data = dt2,
       aes(xintercept = total_mean_kcal_mol, color=id),
       
       linetype = "dashed",
       linewidth = 0.2
     ) +
-  
    geom_text(
       data = dt2,
       aes(x = total_mean_kcal_mol, y=1,label = id, color=id),
       hjust = -0.1,  # position label slightly to the right
       size = 3
-      
     ) +
-  
   theme_classic() +
    theme(aspect.ratio=1)+
   ggtitle(paste0(assay, "density"))
@@ -389,7 +379,6 @@ for (assay in assays) {
       c("surface", "binding_interface")
     )
   }
-    
     y_max <- max(subset_dt$total_mean_kcal_mol, na.rm = TRUE)
 y_lim <- y_max * 1.5  # or add a fixed buffer if you prefer: y_max + 1
 
@@ -494,8 +483,7 @@ x_lims <- if (assay == "Folding") c(-0.5, 2.5) else c(-0.25, 1.25)
   print(t_test_result)
   
   p_value_label <- paste0("Paired t-test p = ", signif(t_test_result$p.value, 3))
-    
-    # Define color condition column
+  
   subset_dt[, color_condition := fifelse(dataset == "1st_order_ddg" & fdr_stab_destab < 0.05 & total_mean_kcal_mol > 0, "positive",
                                  fifelse(dataset == "calculated_ddg_C" & fdr_stab_destab < 0.05 & total_mean_kcal_mol < 0, "negative", "other"))]
     
@@ -535,8 +523,7 @@ p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
   print(t_test_result)
   
   p_value_label <- paste0("Paired t-test p = ", signif(t_test_result$p.value, 3))
-    
-    # Define color condition column
+  
   subset_dt[, color_condition := fifelse(dataset == "1st_order_ddg" & fdr_stab_destab < 0.05 & total_mean_kcal_mol < 0, "negative",
                                  fifelse(dataset == "calculated_ddg_NC" & fdr_stab_destab < 0.05 & total_mean_kcal_mol > 0, "positive", "other"))]
     
