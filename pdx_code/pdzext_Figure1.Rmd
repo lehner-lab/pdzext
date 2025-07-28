@@ -1,0 +1,289 @@
+---
+title: "figure 1"
+output: html_document
+date: "2025-07-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+root <- "~/Desktop/mount2/chidalgo/pdzext/"
+knitr::opts_knit$set(root.dir = root)
+setwd(root)
+```
+
+
+###########################
+### R packages
+###########################
+```{r}
+
+
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+library(GGally)
+library("readxl")
+library(scales)
+library(ggtext)
+```
+
+#table from DimSum with STOPS and Synonymous mutations (nucleotide level)
+```{r}
+Suppltable_DiMSUM_fitness_STOPS_synonymous<-fread("Data_pdzext/fitness/Suppltable_DiMSUM_fitness_STOPS_synonymous.txt")
+```
+
+#tables of variants from DimSum without synonymous mutations (aa level)
+```{r}
+pca_assays <- c("abundance","binding")
+libraries<-c("PDZ3_NC_","PDZ3_C_","PDZ3_N_","PDZ3_")
+```
+```{r}
+for(pca_assay  in pca_assays){
+for(library in libraries){
+  #Load fitness data
+  file_path <- paste0("Data_pdzext/fitness_pdzext/PSD95-", library, pca_assay,"_all_variants_dummyext_CC.txt")
+  data <- as.data.table(fread(file_path))
+  assign(paste0(library,pca_assay,"_fitness_replicates"), data)
+}
+}
+```
+
+#plots Figure 1c and Extended Data Fig. 1b: replicates fitness
+```{r}
+library(ggrastr)
+library(Cairo)
+shared_limits <- c(-2, 1)
+
+lower_fn <- function(data, mapping, ...) {
+  ggplot(data = data, mapping = mapping) +
+    rasterise(geom_point(color = "black", shape=1, alpha=0.01)) +
+    coord_cartesian(xlim = shared_limits, ylim = shared_limits)
+}
+
+upper_fn <- function(data, mapping, ...) {
+  ggally_cor(data = data, mapping = mapping, size = 5, color = "red", ...) +
+    coord_cartesian(xlim = shared_limits, ylim = shared_limits)
+}
+
+
+
+for (pca_assay in pca_assays) {
+  for (library in libraries) {
+    name <- paste0(library, pca_assay, "_fitness_replicates")
+    data <- get(name)
+
+    # Build the pair plot
+    plot <- ggpairs(
+      data[, c(17, 18, 19)],
+      lower = list(continuous = lower_fn),
+      upper = list(continuous = upper_fn),
+      diag = "blank"
+    ) +
+    ggtitle(paste0(library, pca_assay)) +
+    theme_classic()+
+   theme(panel.background = element_rect(color = "black", fill = NA, linewidth = 1))
+
+    print(plot)
+    ggsave(paste0("Data_pdzext/output_pdzext/Fig_1c_Suppl1b_",library,"_",pca_assay,".pdf"), width=7, height=7)
+  }
+}
+```
+
+#plot Figure 1d: density fitness
+```{r}
+ name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
+    dt <- get(name)
+    
+dt[, mut_type_plot := fifelse(mut_type %in% c("single", "double"), "missense", mut_type)]# Create a new column combining single and double into missense
+
+dt[, library := factor(library, levels = c("PDZ3_NC_", "PDZ3_C_", "PDZ3_N_", "PDZ3_"))]# Set library factor levels in the desired order
+
+ggplot(dt[mut_type != ""], aes(x = fitness, color = mut_type_plot)) +
+  geom_density(linewidth=1.5) +
+  facet_grid(pca_type ~ library, scales = "fixed") +  # fixed x and y axes for uniformity
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 10),
+    panel.spacing = unit(1, "lines"),
+    axis.text.x = element_text(angle = 0, hjust = 1)
+  ) +
+  scale_color_manual(values = c(
+    "STOP" = "#e45260",
+     "missense" = "#fbb040",
+    "synonymous" = "#8f9dd0"
+  )) +
+  labs(x = "Fitness", y = "Density", fill = "Mutation Type")
+
+ggsave("Data_pdzext/output_pdzext/Fig_1d.pdf", width=15, height=10)
+
+
+
+
+```
+
+#modify the table adding new columns for heatmap in Extended Data Fig. 1a:
+```{r}
+name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
+dt <- get(name)
+    
+# Trim last 2 letters from `aa_seq` because they are "mock" mutations for extensions
+dt[, aa_seq_short := substr(aa_seq, 1, nchar(aa_seq) - 2)]
+
+# Set reference WT sequence
+wt_short <- "RRIVIHRGSTGLGFNIVGGEDGEGIFISFILAGGPADLSGELRKGDQILSVNGVDLRNASHEQAAI"
+wt_split <- strsplit(wt_short, "")[[1]]
+
+# Identify mutation position
+dt[, mutation_info := lapply(aa_seq_short, function(seq) {
+  seq_split <- strsplit(seq, "")[[1]]
+  which(seq_split != wt_split)
+})]
+
+# Filter for exactly one mutation
+dt_single <- dt[lengths(mutation_info) == 1&STOP==FALSE]
+
+# Compute mutation details row-by-row
+dt_single[, `:=`(
+  Pos = sapply(mutation_info, function(x) x[1]) + 311,
+  wt_letter = mapply(function(i) substr(wt_short, i, i), mutation_info),
+  mutant = mapply(function(seq, i) substr(seq, i, i), aa_seq_short, mutation_info)
+)]
+
+dt_single[, wt_Pos := paste0(wt_letter, Pos)]
+
+  # Create a new column for categories of the aa
+    dt_single[, aa_category := fifelse(mutant %in% c("R", "H", "K"), "positive_charge",
+                                           fifelse(mutant %in% c("D", "E"), "negative_charge",
+                                                   fifelse(mutant %in% c("S", "T", "N", "Q"), "polar_uncharged",
+                                                           fifelse(mutant %in% c("C", "G", "P"), "special_cases", "hydrophobic"))))]
+    dt_single$aa_category <- factor(dt_single$aa_category,
+                                        levels = c("hydrophobic", "special_cases", "negative_charge", "positive_charge", "polar_uncharged"))
+    # Create a new column for colored text
+dt_single[, mutant_colored := fifelse(aa_category == "positive_charge", paste0("<span style='color:blue'>", mutant, "</span>"),
+                                                 fifelse(aa_category == "negative_charge", paste0("<span style='color:red'>", mutant, "</span>"),
+                                                         fifelse(aa_category == "polar_uncharged", paste0("<span style='color:orange'>", mutant, "</span>"),
+                                                                 fifelse(aa_category == "special_cases", paste0("<span style='color:violet'>", mutant, "</span>"),
+                                                                         paste0("<span style='color:pink'>", mutant, "</span>")))))]
+ assign(name,dt_single)
+```
+
+#plot Extended Data Figure 1a: heat maps of observed fitness
+```{r}
+name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
+    dt <- get(name)
+    for (pca_assay_value in pca_assays) {
+  for (library_value in libraries) {
+  # Subset the data for the current dataset value
+  subset_dt <- dt[pca_type==pca_assay_value& library == library_value]
+  
+  subset_dt$mutant_colored<-factor(subset_dt$mutant_colored,levels=c(
+  "<span style='color:orange'>S</span>",                                                                    "<span style='color:orange'>T</span>",
+  "<span style='color:orange'>N</span>",
+  "<span style='color:orange'>Q</span>",
+  "<span style='color:red'>D</span>",
+  "<span style='color:red'>E</span>",
+  "<span style='color:blue'>K</span>",
+  "<span style='color:blue'>R</span>",
+  "<span style='color:blue'>H</span>",
+  "<span style='color:violet'>G</span>",
+  "<span style='color:violet'>P</span>",
+  "<span style='color:violet'>C</span>",
+  "<span style='color:pink'>M</span>",
+  "<span style='color:pink'>A</span>",
+  "<span style='color:pink'>L</span>",
+  "<span style='color:pink'>I</span>",
+  "<span style='color:pink'>V</span>",
+  "<span style='color:pink'>F</span>",
+  "<span style='color:pink'>Y</span>",
+  "<span style='color:pink'>W</span>"))  
+
+  pos_df<-subset_dt[,c("Pos","wt_Pos","wt_letter")]
+  pos_df<-pos_df[!duplicated(pos_df),]
+  pos_df<-pos_df[order(pos_df$Pos),]
+  
+  min_val <- -2.2 #min value from all datasets
+  max_val <- 2.2 #max value from all datasets
+    
+    p<-ggplot(subset_dt,aes(x=Pos,y=mutant_colored))+
+     geom_tile(aes(fill = fitness))+
+   scale_fill_gradientn(colours = c("#e85d47","lightgrey", "#898ac0"), values = rescale(c(min_val,0,max_val)),guide = "colorbar", limits=c(min_val,max_val))+
+     scale_x_discrete(limits=pos_df$Pos,
+                  labels=pos_df$wt_letter)+
+     theme_classic()+
+    theme(
+  legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
+  legend.text = element_text(size = 8),
+  axis.text.x = element_markdown(vjust = 0.5, hjust = 1),
+  axis.text.y = element_markdown(angle = 90,vjust = 0.5, hjust = 1),
+  legend.title = element_text(size = 0))+
+       coord_fixed(ratio = 1)+
+  ggtitle(paste0(library_value, pca_assay_value))
+    
+ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_1a_",pca_assay_value,library_value,".pdf"), width=15, height=5)
+  print(p)
+  }
+    }
+```
+
+
+```{r}
+# Function to compare with wt and identify mutations
+find_mutated <- function(aa_seq_, wt) {
+  wt_split <- unlist(tstrsplit(wt, ""))
+  seq_split <- unlist(tstrsplit(aa_seq_, ""))
+  mutated <- wt_split != seq_split
+  paste0(wt_split[mutated], which(mutated), seq_split[mutated], collapse = ",")
+}
+
+# Load ddPCA Data, Table from Faure et al. (2022)
+TableS6 <- as.data.table(read_excel("Data_pdzext/literature_validations_pdzext/TableS6_20211201_data.xlsx"))
+
+# definition of WT to compare
+wt_ddPCA <- "RRIVIHRGSTGLGFNIVGGEDGEGIFISFILAGGPADLSGELRKGDQILSVNGVDLRNASHEQAAIALKNAGQTVTIIAQYKP*"
+wt_mine  <- "RRIVIHRGSTGLGFNIVGGEDGEGIFISFILAGGPADLSGELRKGDQILSVNGVDLRNASHEQAAI"
+
+# Process my data
+fitnes_to_merge <- Suppltable_DiMSUM_fitness_STOPS_synonymous[library == "PDZ3_"]
+fitnes_to_merge[, aa_seq := substr(aa_seq, 1, nchar(aa_seq) - 2)]
+fitnes_to_merge[, mutated_id := mapply(find_mutated, aa_seq, wt_mine)]
+
+# Correlation Plot function
+make_ddPCA_plot <- function(pca_type_label, ddPCA_type_col, fitness_col, plot_title) {
+  
+  # Subset and prepare ddPCA dataset
+  dt_ddPCA <- TableS6[protein == "PSD95-PDZ3" & pca_type == pca_type_label]
+  dt_ddPCA[, aa_seq := substr(aa_seq, 2, nchar(aa_seq))]
+  dt_ddPCA[, mutated_id := mapply(find_mutated, aa_seq, wt_ddPCA)]
+  dt_ddPCA <- dt_ddPCA[!is.na(mutated_id) & mutated_id != "", .(fitness_ddPCA = fitness, mutated_id)]
+  
+  # Subset and prepare mine
+  fitnes_mine <- fitnes_to_merge[pca_type == ddPCA_type_col, .(fitness_mine = fitness, mutated_id)]
+  fitnes_mine <- fitnes_mine[!is.na(mutated_id) & mutated_id != ""]
+  
+  # Merge
+  merged_dt <- merge(dt_ddPCA, fitnes_mine, by = "mutated_id", all = FALSE)
+  
+  # Plot
+  ggplot(merged_dt, aes(x = fitness_ddPCA, y = fitness_mine)) +
+    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+    geom_point(size = 3, alpha = 0.5) +
+    stat_cor(size = 5) +
+    theme_classic() +
+    theme(aspect.ratio = 1) +
+    ggtitle(plot_title)
+}
+
+# Plot for Abundance
+p1 <- make_ddPCA_plot("Abundance", "abundance", "fitness_aPCA", "Fitness aPCA")
+print(p1)
+ggsave(filename = "Data_pdzext/output_pdzext/Suppl_Fig_1c_aPCA.pdf", plot = p1, width = 4, height = 4)
+
+# Plot for Binding
+p2 <- make_ddPCA_plot("Binding", "binding", "fitness_bPCA", "Fitness bPCA")
+print(p2)
+ggsave(filename = "Data_pdzext/output_pdzext/Suppl_Fig_1c_bPCA.pdf", plot = p2, width = 4, height = 4)
+
+```
+
