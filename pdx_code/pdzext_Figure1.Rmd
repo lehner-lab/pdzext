@@ -4,11 +4,10 @@ output: html_document
 date: "2025-07-28"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-root <- "~/Desktop/mount2/chidalgo/pdzext/"
-knitr::opts_knit$set(root.dir = root)
-setwd(root)
+```{r setup}
+base_dir<-"base_dir/"
+knitr::opts_knit$set(root.dir = base_dir)
+setwd(base_dir)
 ```
 
 
@@ -31,7 +30,7 @@ library(ggtext)
 
 #table from DimSum with STOPS and Synonymous mutations (nucleotide level)
 ```{r}
-Suppltable_DiMSUM_fitness_STOPS_synonymous<-fread("Data_pdzext/fitness/Suppltable_DiMSUM_fitness_STOPS_synonymous.txt")
+Suppltable_DiMSUM_fitness_STOPS_synonymous<-fread("Data_pdzext/fitness_pdzext/Suppltable_DiMSUM_fitness_STOPS_synonymous.txt")
 ```
 
 #tables of variants from DimSum without synonymous mutations (aa level)
