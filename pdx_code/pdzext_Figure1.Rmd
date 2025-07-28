@@ -15,8 +15,6 @@ setwd(base_dir)
 ### R packages
 ###########################
 ```{r}
-
-
 library(data.table)
 library(dplyr)
 library(ggplot2)
