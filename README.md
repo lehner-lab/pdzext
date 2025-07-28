@@ -18,4 +18,5 @@ The following packages are required (package_version):
 - GGally_2.2.1
 - Cairo_1.6-2
 - ggrastr_1.0.2
+- ggrepel_0.9.6
 
