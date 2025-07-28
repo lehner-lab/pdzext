@@ -12,3 +12,9 @@ The following packages are required (package_version):
 - ggpubr_0.6.0
 - readxl_1.4.5
 - dplyr_1.1.4 
+- ggtext_0.1.2
+- scales_1.4.0
+- GGally_2.2.1
+- Cairo_1.6-2
+- ggrastr_1.0.2
+- 
