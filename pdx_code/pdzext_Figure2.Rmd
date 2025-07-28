@@ -1,0 +1,557 @@
+---
+title: "Figure 2"
+output: html_document
+date: "2025-07-28"
+---
+
+```{r setup}
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+knitr::opts_knit$set(root.dir = base_dir)
+setwd(base_dir)
+```
+
+
+#R packages
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library("readxl")
+library(ggrepel)
+```
+
+
+#tables used
+```{r}
+mutations_distances_annotation_median_rSASA_Folding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Folding_merged.txt")
+mutations_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
+signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
+signif_muts_bysite_distances_annotation_median_rSASA_Folding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Folding_merged.txt")
+```
+
+```{r}
+raw_list_Folding<-fread("Data_pdzext/energies_pdzext/thirdOrder_merge_table_Folding.txt")[
+  id %in% c("WT", "C67A", "C68A", "C67A_C68A"), 
+  .(id, total_mean_kcal_mol, total_std_kcal_mol)
+]
+
+raw_list_Binding<-fread("Data_pdzext/energies_pdzext/thirdOrder_merge_table_Binding.txt")[
+  id %in% c("WT", "C67A", "C68A", "C67A_C68A"), 
+  .(id, total_mean_kcal_mol, total_std_kcal_mol)
+]
+```
+
+```{r}
+#load tables with literature energy measurements
+PDZ_literature_free_energies<-fread("Data_pdzext/literature_validations_pdzext/PDZ_literature_free_energies.txt")
+
+saotome2021_invitro<-data.table(Dataset=c("Saotome_2021","Saotome_2021","Saotome_2021","Saotome_2021","Saotome_2021","Saotome_2021","Saotome_2021"),id=c("V328A","F340A","L342A","I389A","V315A","L349A","V365A"),Tm=c(68.97,72.98,70.97,60.99,66.21,69.74,70.01),dHvanHoff=c(262.47,350.08,339.13,237.23,224.99,241.75,179.84))
+
+PDZ_literature_free_energies<-rbind(PDZ_literature_free_energies,saotome2021_invitro,fill=TRUE)
+
+single_dG_Salinas_2018_pdz3_long<-fread("Data_pdzext/literature_validations_pdzext/single_dG_Salinas_2018_pdz3_long.txt")
+
+ddPCApaper_folding<-fread("Data_pdzext/literature_validations_pdzext/DDG_folding_ddPCAPaper_newMochi.txt")
+ddPCApaper_folding[,Pos:=Pos.y-311]
+ddPCApaper_folding[,id:=paste0(WT_AA,Pos,Mut)]
+ddPCApaper_binding<-fread("Data_pdzext/literature_validations_pdzext/DDG_binding_ddPCAPaper_newMochi.txt")
+ddPCApaper_binding[,Pos:=Pos.y-311]
+ddPCApaper_binding[,id:=paste0(WT_AA,Pos,Mut)]
+```
+
+#plots Figure 2c and Extended Data 2e: correlation with literature energies
+```{r}
+#my data
+table_first_Folding<-mutations_distances_annotation_median_rSASA_Folding_merged[dataset=="1st_order_ddg",c("wt_Pos","mutant","total_mean_kcal_mol")]
+table_first_Folding<-table_first_Folding[,id:=paste0(wt_Pos,mutant)]
+
+table_first_Binding<-mutations_distances_annotation_median_rSASA_Binding_merged[dataset=="1st_order_ddg",c("wt_Pos","mutant","total_mean_kcal_mol")]
+table_first_Binding<-table_first_Binding[,id:=paste0(wt_Pos,mutant)]
+```
+
+```{r}
+#merge mine with literature data
+ddg_Folding_first_literature<-merge(table_first_Folding,PDZ_literature_free_energies,by="id")
+ddg_Binding_first_literature<-merge(table_first_Binding,PDZ_literature_free_energies,by="id")
+```
+
+```{r}
+plot_configs <- list(
+  list(data = ddg_Folding_first_literature, dataset = "Saotome_2021", x = "dHvanHoff", assay = "Folding", title = "Folding ddg vs in vitro Saotome2021 van't Hoff enthalpy (ΔH)", file = "Data_pdzext/output_pdzext/Fig_2c_saotome.pdf"),
+  list(data = ddg_Folding_first_literature, dataset = "Calosci_2008", x = "f_ddg", assay = "Folding", title = "Folding ddg vs in vitro Calosci_2008 f_ddg", file = "Data_pdzext/output_pdzext/Fig_2c_calosci.pdf"),
+  list(data = ddg_Folding_first_literature, dataset = "Chi_2008",     x = "f_ddg", assay = "Folding", title = "Folding ddg vs in vitro Chi_2008 f_ddg", file = "Data_pdzext/output_pdzext/Fig_2c_chi_folding.pdf"),
+  list(data = ddg_Binding_first_literature, dataset = "Laursen_2020", x = "log10(Kd)", assay = "Binding", title = "Binding ddg vs in vitro Laursen_2020 log10(Kd)", file = "Data_pdzext/output_pdzext/Fig_2c_Laursen.pdf"),
+  list(data = ddg_Binding_first_literature, dataset = "Chi_2008",     x = "log10(Kd)", assay = "Binding", title = "Binding ddg vs in vitro Chi_2008 log10(Kd)", file = "Data_pdzext/output_pdzext/Fig_2c_Chi_binding.pdf")
+)
+
+# Calculate global y-axis limits across all datasets
+all_values <- c(
+  ddg_Folding_first_literature$total_mean_kcal_mol,
+  ddg_Binding_first_literature$total_mean_kcal_mol
+)
+global_ylim <- range(all_values, na.rm = TRUE)
+y_margin <- 0.1 * diff(global_ylim)
+global_ylim_extended <- c(global_ylim[1] - y_margin, global_ylim[2] + y_margin)
+
+# Loop and generate plots
+# Loop and generate plots
+for (cfg in plot_configs) {
+  data <- cfg$data[Dataset == cfg$dataset]
+
+  p <- ggplot(data, aes_string(x = cfg$x, y = "total_mean_kcal_mol")) +
+    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+    geom_point(size = 3) +
+    stat_cor(size = 5) +
+    coord_cartesian(ylim = global_ylim_extended) +
+    theme_classic() +
+    theme(aspect.ratio = 1) +
+    ggtitle(cfg$title)
+  
+  print(p)
+  ggsave(cfg$file, plot = p, width = 4, height = 4)
+}
+```
+
+```{r}
+#correlation with Salinas et al.(2018)
+mutations_distances_annotation_median_rSASA_Binding_merged_filtered <- mutations_distances_annotation_median_rSASA_Binding_merged[dataset == "1st_order_ddg", .(id, total_mean_kcal_mol)]
+merged_dt <- merge(single_dG_Salinas_2018_pdz3_long, mutations_distances_annotation_median_rSASA_Binding_merged_filtered[, .(id, total_mean_kcal_mol)], by = "id", all = FALSE)
+
+  p <- ggplot(merged_dt, aes(x = Salinas_2018_single_dG, y = total_mean_kcal_mol)) +
+    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+    geom_point(size = 3) +
+    stat_cor(size = 5) +
+    coord_cartesian(ylim = global_ylim_extended) +
+    theme_classic() +
+    theme(aspect.ratio = 1) +
+    ggtitle("Salinas2018")
+  
+  print(p)
+  ggsave("Data_pdzext/output_pdzext/Fig_2c_salinas.pdf", plot = p, width = 4, height = 4)
+```
+
+```{r}
+#correlation with Faure et al. (2022) folding
+mutations_distances_annotation_median_rSASA_Folding_merged_filtered <- mutations_distances_annotation_median_rSASA_Folding_merged[dataset == "calculated_ddg_NC", .(id, total_mean_kcal_mol)]
+merged_dt_folding <- merge(ddPCApaper_folding, mutations_distances_annotation_median_rSASA_Folding_merged_filtered[, .(id, total_mean_kcal_mol)], by = "id", all = FALSE)
+
+  p <- ggplot(merged_dt_folding, aes(x = PDZ_mean_kcal.mol, y = total_mean_kcal_mol)) +
+    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+   geom_point(size = 3, alpha=0.5) +
+    stat_cor(size = 5) +
+    theme_classic() +
+    theme(aspect.ratio = 1) +
+    ggtitle("ddPCA_folding")
+  
+  print(p)
+  ggsave("Data_pdzext/output_pdzext/Suppl_Fig_2e_folding.pdf", plot = p, width = 4, height = 4)
+```
+
+```{r}
+#correlation with Faure et al. (2022) binding
+mutations_distances_annotation_median_rSASA_Binding_merged_filtered <- mutations_distances_annotation_median_rSASA_Binding_merged[dataset == "calculated_ddg_NC", .(id, total_mean_kcal_mol)]
+merged_dt_binding <- merge(ddPCApaper_binding, mutations_distances_annotation_median_rSASA_Binding_merged_filtered[, .(id, total_mean_kcal_mol)], by = "id", all = FALSE)
+
+  p <- ggplot(merged_dt_binding, aes(x = PDZ_mean_kcal.mol, y = total_mean_kcal_mol)) +
+    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+    geom_point(size = 3, alpha=0.5) +
+    stat_cor(size = 5) +
+    theme_classic() +
+    theme(aspect.ratio = 1) +
+    ggtitle("ddPCA_binding")
+  
+  print(p)
+  ggsave("Data_pdzext/output_pdzext/Suppl_Fig_2e_binding.pdf", plot = p, width = 4, height = 4)
+```
+
+#plot Figure 2e: heat maps of energies
+```{r}
+assays<-c("Folding","Binding")
+dataset_values<-c("1st_order_ddg", "dddg_N","dddg_C","ddddg_NC")
+
+aa_color_map <- c(
+  "T" = "<span style='color:orange'>T</span>",
+  "S" = "<span style='color:orange'>S</span>",
+  "N" = "<span style='color:orange'>N</span>",
+  "Q" = "<span style='color:orange'>Q</span>",
+  "D" = "<span style='color:red'>D</span>",
+  "E" = "<span style='color:red'>E</span>",
+  "K" = "<span style='color:blue'>K</span>",
+  "R" = "<span style='color:blue'>R</span>",
+  "H" = "<span style='color:blue'>H</span>",
+  "G" = "<span style='color:violet'>G</span>",
+  "P" = "<span style='color:violet'>P</span>",
+  "C" = "<span style='color:violet'>C</span>",
+  "M" = "<span style='color:pink'>M</span>",
+  "A" = "<span style='color:pink'>A</span>",
+  "L" = "<span style='color:pink'>L</span>",
+  "I" = "<span style='color:pink'>I</span>",
+  "V" = "<span style='color:pink'>V</span>",
+  "F" = "<span style='color:pink'>F</span>",
+  "Y" = "<span style='color:pink'>Y</span>",
+  "W" = "<span style='color:pink'>W</span>"
+)
+
+for (assay in assays) {
+  name <- paste0("mutations_distances_annotation_median_rSASA_",assay,"_merged")
+    dt <- get(name)
+    
+     # Loop through the unique values in the 'dataset' column and generate a plot for each
+for (dataset_value in dataset_values) {
+  # Subset the data for the current dataset value
+  subset_dt <- dt[dataset == dataset_value]
+  
+  # Make a copy of the original table to avoid altering it in place
+dt_new <- copy(subset_dt)
+
+# Extract unique Pos and wt combinations
+wt_rows <- unique(dt_new[, .(Pos, wt, dataset)])
+
+#  Create the new rows with total_mean_kcal_mol = 0
+wt_rows[, `:=`(
+  mutant = wt,
+  total_mean_kcal_mol = 0
+)]
+# Add colored label
+    wt_rows[, mutant_colored := aa_color_map[wt]]
+
+# Bind to the original table
+dt_final <- rbind(dt_new, wt_rows, fill = TRUE)
+    
+dt_final$mutant_colored<-factor(dt_final$mutant_colored,levels=c(
+  "<span style='color:orange'>S</span>",
+  "<span style='color:orange'>T</span>",
+  "<span style='color:orange'>N</span>",
+  "<span style='color:orange'>Q</span>",
+  "<span style='color:red'>D</span>",
+  "<span style='color:red'>E</span>",
+  "<span style='color:blue'>K</span>",
+  "<span style='color:blue'>R</span>",
+  "<span style='color:blue'>H</span>",
+  "<span style='color:violet'>G</span>",
+  "<span style='color:violet'>P</span>",
+  "<span style='color:violet'>C</span>",
+  "<span style='color:pink'>M</span>",
+  "<span style='color:pink'>A</span>",
+  "<span style='color:pink'>L</span>",
+  "<span style='color:pink'>I</span>",
+  "<span style='color:pink'>V</span>",
+  "<span style='color:pink'>F</span>",
+  "<span style='color:pink'>Y</span>",
+  "<span style='color:pink'>W</span>"))    
+
+
+rSASA_class_df <- mutations_distances_annotation_median_rSASA_Folding_merged[dataset == "1st_order_ddg", .(Pos, wt, class = class_rSASA_Folding)]#to have the coloured x axis
+rSASA_class_colors <- c(
+  "core" = "#94da55",
+  "surface" = "#17A2B8"
+)
+rSASA_class_df[, wt_colored := paste0(
+  "<span style='color:", rSASA_class_colors[class], "'>", wt, "</span>"
+)]
+
+
+  pos_df<-subset_dt[,c("Pos","wt_Pos","wt","Pos_class_reduced","Pos_class")]
+  pos_df<-pos_df[!duplicated(pos_df),]
+  pos_df<-pos_df[order(pos_df$Pos),]
+  
+  pos_df <- merge(pos_df, rSASA_class_df[, .(Pos, wt_colored)], by = "Pos", all.x = TRUE)
+  
+     if (assay == "Folding") {#max and min of alll datasets
+  min_val <- -3.06
+  max_val <- 3.06
+  
+  p<-ggplot(dt_final,aes(x=Pos,y=mutant_colored))+
+     geom_tile(aes(fill = total_mean_kcal_mol))+
+   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"), values = rescale(c(min_val,0,max_val)),guide = "colorbar", limits=c(min_val,max_val))+
+     scale_x_discrete(limits=pos_df$Pos,
+                  labels=pos_df$wt_colored)+
+    geom_point(
+    data = dt_final[class %in% c("stabilizing", "destabilizing")],
+    aes(x = Pos, y = mutant_colored),
+    shape = 18, color = "black", size = 0.5
+  ) +
+     theme_classic()+
+  theme(
+  legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
+  legend.text = element_text(size = 8),
+  axis.text.x = element_markdown(vjust = 0.5, hjust = 1),
+  axis.text.y = element_markdown(angle = 90,vjust = 0.5, hjust = 1),
+  legend.title = element_text(size = 0))+
+       coord_fixed(ratio = 1)+
+  ggtitle(paste0(assay," energy term ", dataset_value))
+print(p)
+  
+} else if (assay == "Binding") {#max and min of alll datasets
+  min_val <- -1.53
+  max_val <- 1.53
+  
+  p<-ggplot(dt_final,aes(x=Pos,y=mutant_colored))+
+     geom_tile(aes(fill = total_mean_kcal_mol))+
+   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"), values = rescale(c(min_val,0,max_val)),guide = "colorbar", limits=c(min_val,max_val))+
+     scale_x_discrete(limits=pos_df$Pos,
+                  labels=pos_df$wt_colored)+
+ geom_point(
+    data = dt_final[class %in% c("stabilizing", "destabilizing")],
+    aes(x = Pos, y = mutant_colored),
+    shape = 18, color = "black", size = 0.5
+  ) +
+       #labs(x = NULL, y = NULL)+
+     theme_classic()+
+    theme(
+  legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
+  legend.text = element_text(size = 8),
+  axis.text.x = element_markdown(vjust = 0.5, hjust = 1),
+  axis.text.y = element_markdown(angle = 90,vjust = 0.5, hjust = 1),
+  legend.title = element_text(size = 0))+
+       coord_fixed(ratio = 1)+
+  ggtitle(paste0(assay," energy term ", dataset_value))
+print(p)
+}
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_2e_",dataset_value,"_",assay,".pdf"), width=15, height=5)
+  }}
+```
+
+
+#plot figure 2d box plots of energy terms(mutations)
+```{r}
+dataset_values<-c("ddddg_NC", "dddg_C", "dddg_N","1st_order_ddg")
+
+for (assay in assays) {
+  name <- paste0("mutations_distances_annotation_median_rSASA_",assay,"_merged")
+    dt <- get(name)
+
+  subset_dt <- dt[dataset %in% dataset_values]
+  subset_dt[, dataset := factor(dataset, levels = c("ddddg_NC", "dddg_C", "dddg_N","1st_order_ddg"))]
+  
+  name2 <- paste0("raw_list_",assay)
+    dt2 <- get(name2)
+   
+  
+
+
+p<-ggplot(subset_dt, aes(x=total_mean_kcal_mol, y=dataset))+
+
+geom_jitter(aes(color=class), size = 1, alpha = 0.3,width = 0.005,height = 0.15)+
+  scale_color_manual(
+    name = "Point Color",
+    values = c("destabilizing" = "#e85d47", "stabilizing" = "#898ac0", "no change" = "grey")
+  ) +
+ geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.2) +
+  scale_x_continuous(limits = c(-2, 3.1))+
+  
+     # Add one vertical line per dataset
+    geom_vline(
+      data = dt2,
+      aes(xintercept = total_mean_kcal_mol, color=id),
+      
+      linetype = "dashed",
+      linewidth = 0.2
+    ) +
+  
+   geom_text(
+      data = dt2,
+      aes(x = total_mean_kcal_mol, y=1,label = id, color=id),
+      hjust = -0.1,  # position label slightly to the right
+      size = 3
+      
+    ) +
+  
+  theme_classic() +
+   theme(aspect.ratio=1)+
+  ggtitle(paste0(assay, "density"))
+
+  print(p)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_2d_",assay,".pdf"), width=7, height=7)
+}
+```
+
+
+#plot Extended Data Fig. 2a: violin plots core/surface/binding
+```{r}
+custom_colors <- c("surface" = "#17A2B8", "core" = "#94da55", "binding_interface"="#ff7f7f")
+
+for (assay in assays) {
+  name <- paste0("mutations_distances_annotation_median_rSASA_",assay,"_merged")
+    dt <- get(name)
+    subset_dt <- dt[dataset== "1st_order_ddg"]
+    class_column<-paste0("class_rSASA_",assay)
+    subset_dt[[class_column]] <- factor(
+  subset_dt[[class_column]],
+  levels = c("core", "surface", "binding_interface")
+)
+     # Set comparisons for stat_compare_means
+  if (assay == "Folding") {
+    comparisons_list <- list(c("core", "surface"))
+  } else {
+    comparisons_list <- list(
+      c("core", "binding_interface"),
+      c("surface", "binding_interface")
+    )
+  }
+    
+    y_max <- max(subset_dt$total_mean_kcal_mol, na.rm = TRUE)
+y_lim <- y_max * 1.5  # or add a fixed buffer if you prefer: y_max + 1
+
+p <- ggplot(subset_dt, aes(x = .data[[class_column]], y = total_mean_kcal_mol)) +
+  geom_jitter(aes(color = .data[[class_column]]), width = 0.2, alpha = 0.7, size = 0.1) +
+  geom_violin(aes(fill = .data[[class_column]]), trim = TRUE, alpha = 0.3, size = 0.1) +
+  scale_color_manual(values = custom_colors) +
+  scale_fill_manual(values = custom_colors) +
+  stat_compare_means(method = "t.test", 
+                           comparisons = comparisons_list,
+                           label = "p.signif",
+                           size = 10)+
+ scale_y_continuous(limits = c(min(subset_dt$total_mean_kcal_mol, na.rm = TRUE), y_lim)) +
+  theme_classic() +
+   theme(aspect.ratio=1)+
+  ggtitle(assay)
+
+  print(p)
+ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_2a_",assay,".pdf"), width=7, height=7)
+}
+```
+
+
+
+#plot Extended figure 2b: correlation claculated_ddg to see changes in sign
+```{r}
+library(ggrepel)
+ dataset_all<-c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")
+
+for (assay in assays) {
+  name <- paste0("signif_muts_bysite_distances_annotation_median_rSASA_",assay,"_merged")
+    dt <- get(name)
+ dt_base <- dt[dataset == "1st_order_ddg",
+                .(Pos, median_energy)]
+  setnames(dt_base, "median_energy", "energy_base")
+
+for (comp_ds in dataset_all[-1]) {
+    dt_comp <- dt[dataset == comp_ds,
+                  .(Pos, median_energy)]
+    setnames(dt_comp, "median_energy", "energy_comp")
+    dt_merged <- merge(dt_base, dt_comp, by = "Pos")#Merge on Pos (inner join)
+
+    # Skip if no overlap
+    if (nrow(dt_merged) == 0L) next
+
+    # Build the plot
+y_lims <- if (assay == "Folding") c(-0.5, 2.5) else c(-0.25, 1.25)
+x_lims <- if (assay == "Folding") c(-0.5, 2.5) else c(-0.25, 1.25)
+    p <- ggplot(dt_merged,
+                aes(y = energy_base, x = energy_comp)) +
+      geom_point(color = "black", alpha = 0.65) +
+     geom_abline(slope = 1, intercept = 0, colour = "blue", linetype = "dashed")+
+      geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
+  geom_vline(xintercept = 0, linetype = "dotted", color = "gray50") +
+     stat_cor(method = "pearson",
+           label.y = 0.75, label.x = 0.25, size = 6) +
+      
+        # Label only the points with opposite signs
+  geom_text_repel(
+    data = dt_merged[(energy_base > 0.05 & energy_comp < -0.05) |
+                 (energy_base < -0.05 & energy_comp > 0.05)],
+    aes(label = Pos),
+    size = 3, color = "red", max.overlaps = Inf
+  ) +
+       scale_y_continuous(limits = y_lims) + 
+       scale_x_continuous(limits = x_lims) + 
+      
+      theme_classic() +
+      theme(aspect.ratio = 1,
+            axis.text   = element_text(size = 12),
+            axis.title  = element_text(size = 14),
+            plot.title  = element_text(size = 15, face = "bold")) +
+      labs(
+        y     = "1st_order_ddg energy (kcal/mol)",
+        x     = paste0(comp_ds, " energy (kcal/mol)"),
+        title = paste(assay, "— 1st_order_ddg vs", comp_ds)
+      )
+    print(p)
+    ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_2b_",comp_ds,"_",assay,".pdf"), width=7, height=7)
+}
+}
+```
+
+#plot Figure 2f: paired dot plots of mutations for 337 comparing N-PDZ-C&N-PDZ and 368 comparing N-PDZ-C&PDZ
+```{r}
+#337
+  name <- paste0("mutations_distances_annotation_median_rSASA_Folding_merged")
+    dt <- get(name)
+    subset_dt<- dt[Pos==337&dataset%in%c("1st_order_ddg","calculated_ddg_C"),]
+    
+     # Ensure both datasets are present per id
+  valid_ids <- subset_dt[, .N, by = id][N == 2, id]
+  subset_dt <- subset_dt[id %in% valid_ids]
+  
+  # Perform paired t-test directly
+  value_ordered <- subset_dt[order(id, dataset)]
+  t_test_result <- t.test(
+    x = value_ordered[dataset == "1st_order_ddg", total_mean_kcal_mol],
+    y = value_ordered[dataset == "calculated_ddg_C", total_mean_kcal_mol],
+    paired = TRUE
+  )
+  print(t_test_result)
+  
+  p_value_label <- paste0("Paired t-test p = ", signif(t_test_result$p.value, 3))
+    
+    # Define color condition column
+  subset_dt[, color_condition := fifelse(dataset == "1st_order_ddg" & fdr_stab_destab < 0.05 & total_mean_kcal_mol > 0, "positive",
+                                 fifelse(dataset == "calculated_ddg_C" & fdr_stab_destab < 0.05 & total_mean_kcal_mol < 0, "negative", "other"))]
+    
+ 
+p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
+ geom_point(aes(color = color_condition), width = 0.2, alpha = 0.7, size = 5) +
+    scale_color_manual(values = c("positive" = "#e85d47", "negative" = "#898ac0", "other" = "grey")) +
+   geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.5) +
+  geom_line(aes(group = id), color = "black", alpha = 0.3) +
+   scale_y_continuous(limits = c(-0.7,2.1)) + 
+   labs(title = assay, subtitle = p_value_label)+
+  theme_classic() +
+   theme(aspect.ratio=1)+
+  ggtitle(assay)
+
+  print(p)
+    ggsave(paste0("Data_pdzext/output_pdzext/Fig_2f_337.pdf"), width=7, height=7)
+```
+
+```{r}
+#368
+  name <- paste0("mutations_distances_annotation_median_rSASA_Folding_merged")
+    dt <- get(name)
+    subset_dt<- dt[Pos==368&dataset%in%c("1st_order_ddg","calculated_ddg_NC"),]
+    
+     # Ensure both datasets are present per id
+  valid_ids <- subset_dt[, .N, by = id][N == 2, id]
+  subset_dt <- subset_dt[id %in% valid_ids]
+  
+  # Perform paired t-test directly
+  value_ordered <- subset_dt[order(id, dataset)]
+  t_test_result <- t.test(
+    x = value_ordered[dataset == "1st_order_ddg", total_mean_kcal_mol],
+    y = value_ordered[dataset == "calculated_ddg_NC", total_mean_kcal_mol],
+    paired = TRUE
+  )
+  print(t_test_result)
+  
+  p_value_label <- paste0("Paired t-test p = ", signif(t_test_result$p.value, 3))
+    
+    # Define color condition column
+  subset_dt[, color_condition := fifelse(dataset == "1st_order_ddg" & fdr_stab_destab < 0.05 & total_mean_kcal_mol < 0, "negative",
+                                 fifelse(dataset == "calculated_ddg_NC" & fdr_stab_destab < 0.05 & total_mean_kcal_mol > 0, "positive", "other"))]
+    
+p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
+  geom_point(aes(color = color_condition), alpha = 0.7, size = 5) +
+    scale_color_manual(values = c("positive" = "#e85d47", "negative" = "#898ac0", "other" = "grey")) +
+   geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.5) +
+  geom_line(aes(group = id), color = "black", alpha = 0.3) +
+    scale_y_continuous(limits = c(-0.7,2.1)) + 
+   labs(title = assay, subtitle = p_value_label)+
+  theme_classic() +
+   theme(aspect.ratio=1)+
+  ggtitle(assay)
+
+  print(p)
+    ggsave(paste0("Data_pdzext/output_pdzext/Fig_2f_368.pdf"), width=7, height=7)
+```
+
