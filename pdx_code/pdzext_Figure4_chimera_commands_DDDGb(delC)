@@ -1,0 +1,58 @@
+#Figure 4c dddgb(delC) binding interface
+
+#####paste these commands in ChimeraX command line
+
+open ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
+
+set bgColor white
+color lightgray
+ lighting flat
+graphics silhouettes true
+lighting shadows false
+
+select /B
+color sel cornflower blue
+
+select :303-310
+color sel yellow green
+
+select :395-402
+color sel violet
+
+
+
+trans #1 80 target ac
+
+#ligand
+select /B
+transparency sel 0 target ac
+select clear
+
+#Cterm
+select /A:395-402
+transparency sel 0 target ac
+select clear
+
+#Nterm
+select /A:303-310
+transparency sel 0 target ac
+
+open  ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_C.defattr
+
+select  :322 :323 :324  :325 :326 :327 :328 :331 :339 :372 :376 :397 :400
+transparency sel 0 target ac
+show sel atoms
+#view sel
+
+contacts :328 :400 restrict both name contact2 color #ff40ff
+contacts :328 :397 restrict both name contact1 color #ff40ff
+color byattribute r:energy_term #!1 target abcs palette -1,#898ac0:0,gainsboro:1,#e85d47 key false
+graphics sel col black width 5
+
+view orient
+turn y -145
+view sel
+
+###move a bit to the right to see the Nterm and zoom manually
+save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_dddg_C_binding_bindingSite_median_illustrator_zoom.png width 2914 height 2573 supersample 3 transparentBackground true
+
