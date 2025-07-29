@@ -1,0 +1,317 @@
+---
+title: "figure5 Binding energies outside the binding interface"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-07-29"
+---
+
+```{r setup}
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+knitr::opts_knit$set(root.dir = base_dir)
+setwd(base_dir)
+```
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+library(scales)
+```
+
+#tables used
+```{r}
+mutations_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
+signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
+```
+
+#plot figure5a: manhattan plots mutations
+```{r}
+dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
+name <- paste0("mutations_distances_annotation_median_rSASA_Binding_merged")
+dt <- get(name)
+
+for (dataset_value in dataset_values) {
+  subset_dt <- dt[dataset == dataset_value]
+  subset_dt$abs_total_mean_kcal_mol <- abs(subset_dt$total_mean_kcal_mol)
+median_abs<-median(subset_dt$abs_total_mean_kcal_mol)
+mad_abs <- mad(subset_dt$abs_total_mean_kcal_mol, constant = 1, na.rm = TRUE)  # constant=1 to not rescale
+threshold_abs_median <- median_abs + mad_abs
+  
+pos_df<-subset_dt[,c("Pos","wt_Pos")]
+pos_df<-pos_df[!duplicated(pos_df),]
+pos_df<-pos_df[order(pos_df$Pos),]
+  
+median_data <- subset_dt[, .(median_value = median(total_mean_kcal_mol, na.rm = TRUE)), by = Pos]#Calculate medians for each position
+   
+p<-ggplot(subset_dt,aes(x=Pos, y=total_mean_kcal_mol))+
+  geom_point(color = "grey") +
+  geom_point(data = subset(subset_dt, class == "stabilizing"), aes(color = "#898ac0")) +
+  geom_point(data = subset(subset_dt, class == "destabilizing"), aes(color = "#e85d47")) +
+  scale_color_identity(name = "Class", labels = c("Stabilizing" = "#898ac0", "Destabilizing" = "#e85d47")) +
+      geom_segment(
+        data = median_data,
+        aes(
+          x = Pos - 0.4, xend = Pos + 0.4,
+          y = median_value, yend = median_value
+        ),
+        color = "#003f34", size = 0.8
+      ) +
+      scale_x_discrete(limits = pos_df$Pos, labels = pos_df$wt_Pos) +  # expand controls spacing
+      labs(x = NULL, y = NULL) +  
+   theme_classic()+
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+                    legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
+                    legend.text = element_text(size = 8),
+                    legend.title = element_text(size = 10)) +
+  ggtitle(paste0(dataset_value," Binding mutations"))
+
+print(p)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_5a_",dataset_value,"_Binding.pdf"), width=15, height=5)
+  }
+```
+#plot Figure 5b: heat maps of medians ddg&dddg&ddddg (called "energy_term")
+```{r}
+    name <- "signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged"
+    dt <- get(name)
+    dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
+
+for (dataset_value in dataset_values) {
+  # Subset the data for the current dataset value
+  subset_dt <- dt[dataset == dataset_value]
+  subset_dt[, row_label := "median energy_term Binding"]
+  
+    if (dataset_value == "1st_order_ddg") {
+    # Calculate separate color scale limits for stabilizing and destabilizing
+    max_abs_median <- max(abs(subset_dt$median_energy))
+    # Create the heatmap
+    p <- ggplot(subset_dt) +
+      # Stabilizing positions: white to blue color scale
+      geom_tile(data = subset_dt,aes(x = Pos, y = row_label, fill = median_energy)) +
+      scale_fill_gradientn(colours = c("#898ac0","#f5f5f5", "#e85d47"), 
+                           limits = c(-max_abs_median,max_abs_median),
+                           values = rescale(c(-max_abs_median,0,max_abs_median)),
+                           name = "median") +
+      # Highlight tiles where FDR < 0.1 by adding a black border
+      geom_tile(data = subset_dt[signif_enrichment==TRUE, ], color = "black", size = 0.7, fill = NA, aes(x = Pos, y = row_label)) +
+      
+      scale_x_discrete(limits = subset_dt$Pos) +
+      labs(x = "Position", y = NULL) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+            legend.key.size = unit(0.5, "cm"),
+            legend.text = element_text(size = 8),
+            legend.title = element_text(size = 10)) +
+      coord_fixed(ratio = 1) +
+      ggtitle(paste0("Binding_",dataset_value))
+    
+    } else {
+      
+       # Combined scale for dddg_N, dddg_C, ddddg_NC
+    dt_combined <- dt[dataset %in% c("dddg_N", "dddg_C", "ddddg_NC")]
+    max_abs_median_combined <- max(abs(dt_combined$median_energy))
+    
+      p <- ggplot(subset_dt) +
+      geom_tile(aes(x = Pos, y = row_label, fill = median_energy)) +
+      scale_fill_gradient2(
+        low = "#008080", mid = "#f5f5f5", high = "#805300",
+        midpoint = 0,
+        limits = c(-max_abs_median_combined, max_abs_median_combined),
+        name = "median"
+      ) +
+      geom_tile(data = subset_dt[signif_enrichment==TRUE, ], color = "black", size = 0.7, fill = NA,aes(x = Pos, y = row_label)) +
+      scale_x_discrete(limits = subset_dt$Pos) +
+      labs(x = "Position", y = NULL) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+            legend.key.size = unit(0.5, "cm"),
+            legend.text = element_text(size = 8),
+            legend.title = element_text(size = 10)) +
+      coord_fixed(ratio = 1) +
+      ggtitle(paste0("Binding_", dataset_value))
+  }
+
+    print(p)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_5b_",dataset_value,".pdf"), width=15, height=5)
+}
+```
+
+#attributes files for Figure 5c
+```{r}
+# Function to create ChimeraX attribute files
+save_colors_for_chimerax <- function(data, dataset_value, chain_id = "A") {
+
+  # Create a filename and save it in the 'Data_pdzext/output_pdzext/' directory
+  output_file <- paste0("Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_", dataset_value, ".defattr")
+
+  # Open the file for writing
+  con <- file(output_file, "w")
+
+  # Write header for ChimeraX attribute file
+  writeLines(c(
+    "attribute: energy_term",
+    "match mode: 1-to-1",
+    "recipient: residues"
+  ), con)
+
+  # Write each position and its numeric value
+  for (i in seq_len(nrow(data))) {
+    if (!is.na(data$median_energy[i])) {
+      writeLines(paste0("\t:", chain_id, ":", data$Pos[i], "\t", data$median_energy[i]), con)
+    }
+  }
+
+  # Close the file connection
+  close(con)
+}
+
+# Loop through each dataset and create attribute files
+name <- "signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged"
+dt <- get(name)
+
+for (dataset_value in unique(dt$dataset)) {
+  subset_dt <- dt[dataset == dataset_value]
+  save_colors_for_chimerax(subset_dt, dataset_value)
+}
+```
+
+
+#plot Figure 5d: distance to extensions
+##mutations
+```{r}
+custom_colors <- c("positive_dddg"="#e85d47", "negative_dddg"="#898ac0")
+name <- paste0("mutations_distances_annotation_median_rSASA_Binding_merged")
+dt <- get(name)
+dataset_values<-c("dddg_N", "dddg_C")
+dt_combined <- dt[dataset %in% c("dddg_N", "dddg_C")]
+
+max_abs_dddg_combined <- max(abs(dt_combined$total_mean_kcal_mol), na.rm = TRUE)#to have the same axis
+global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+
+for (dataset_value in dataset_values) {
+  subset_dt <- dt[dataset == dataset_value]
+  subset1_dt<-subset_dt[total_mean_kcal_mol<0]
+  subset2_dt<-subset_dt[total_mean_kcal_mol>0]
+  
+if (dataset_value == "dddg_N") {
+    xcol <- "min_disAll_NtermAll_byResidue"
+    xlab <- "3D Distance to N-term"
+    subtitle <- " - Distance to N-term"
+  } else {
+    xcol <- "min_disAll_ChelixAll_byResidue"
+    xlab <- "3D Distance to C-helix"
+    subtitle <- " - Distance to C-helix"
+  }
+
+ subset_dt[,  x := get(xcol)]
+  subset1_dt[, x := get(xcol)]
+  subset2_dt[, x := get(xcol)]
+
+  p <- ggplot() +
+    geom_point(data = subset1_dt,
+               aes(x = x, y = abs(total_mean_kcal_mol)),
+               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4,shape=16) +
+    geom_point(data = subset2_dt,
+               aes(x = x, y = abs(total_mean_kcal_mol)),
+               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4,shape=16) +
+
+    stat_cor(data = subset_dt,  aes(x = x, y = abs(total_mean_kcal_mol)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.95,
+             colour  = "black", size = 6) +
+    stat_cor(data = subset2_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.80,
+             colour  = custom_colors["positive_dddg"], size = 6) +
+    stat_cor(data = subset1_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.65,
+             colour  = custom_colors["negative_dddg"], size = 6) +
+    
+    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
+
+#use dataset-specific limits
+    scale_x_continuous(limits = c(min(subset_dt$x), max(subset_dt$x)),
+                       breaks = seq(5, 25, 5)) +
+    scale_y_continuous(limits = c(0, max_abs_dddg_combined),
+                       breaks = seq(0, 0.8, 0.2)) +
+    labs(x = xlab, y = "dddg (kcal/mol)",
+         title = paste0(dataset_value, ": ", subtitle)) +
+    theme_classic() +
+    theme(aspect.ratio = 1,
+          axis.text  = element_text(size = 15),
+          axis.title = element_text(size = 15))
+
+  print(p)
+ ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_mutations_",dataset_value,".pdf"), width=8, height=8)
+}
+```
+
+##medians
+```{r}
+#name <- paste0("signif_muts_bysite_distances_annotation_median_Binding_merged")
+name <- paste0("signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged")
+dt <- get(name)
+dataset_values<-c("dddg_N", "dddg_C")
+dt_combined <- dt[dataset %in% c("dddg_N", "dddg_C")]
+
+max_abs_dddg_combined <- max(abs(dt_combined$median_energy), na.rm = TRUE)
+global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+
+for (dataset_value in dataset_values) {
+  subset_dt <- dt[dataset == dataset_value]
+  subset1_dt<-subset_dt[median_energy<0]
+  subset2_dt<-subset_dt[median_energy>0]
+  
+if (dataset_value == "dddg_N") {
+    xcol <- "min_disAll_NtermAll_byResidue"
+    xlab <- "3D Distance to N-term"
+    subtitle <- "Folding - Distance to N-term"
+  } else {
+    xcol <- "min_disAll_ChelixAll_byResidue"
+    xlab <- "3D Distance to C-helix"
+    subtitle <- "Folding - Distance to C-helix"
+  }
+
+ subset_dt[,  x := get(xcol)]
+  subset1_dt[, x := get(xcol)]
+  subset2_dt[, x := get(xcol)]
+
+  p <- ggplot() +
+    geom_point(data = subset1_dt,
+               aes(x = x, y = abs(median_energy)),
+               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4,shape=16) +
+    geom_point(data = subset2_dt,
+               aes(x = x, y = abs(median_energy)),
+               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4,shape=16) +
+
+    stat_cor(data = subset_dt,  aes(x = x, y = abs(median_energy)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.95,
+             colour  = "black", size = 6) +
+    stat_cor(data = subset2_dt, aes(x = x, y = abs(median_energy)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.80,
+             colour  = custom_colors["positive_dddg"], size = 6) +
+    stat_cor(data = subset1_dt, aes(x = x, y = abs(median_energy)),
+             label.x = 10, label.y = max_abs_dddg_combined*0.65,
+             colour  = custom_colors["negative_dddg"], size = 6) +
+
+    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
+
+    #use dataset-specific limits
+    scale_x_continuous(limits = c(min(subset_dt$x), max(subset_dt$x)),
+                       breaks = seq(5, 25, 5)) +
+    scale_y_continuous(limits = c(0, max_abs_dddg_combined),
+                       breaks = seq(0, 0.8, 0.2)) +
+    labs(x = xlab, y = "dddg (kcal/mol)",
+         title = paste0(dataset_value, ": ", subtitle)) +
+    theme_classic() +
+    theme(aspect.ratio = 1,
+          axis.text  = element_text(size = 15),
+          axis.title = element_text(size = 15))
+
+  print(p)
+ ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_medians_",dataset_value,".pdf"), width=8, height=8)
+
+}
+```
+
