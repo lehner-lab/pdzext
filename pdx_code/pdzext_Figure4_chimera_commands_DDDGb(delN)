@@ -2,7 +2,7 @@
 
 #Figure 4c dddgb(delN) binding interface
 
-open ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
+open ~base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
 
 set bgColor white
 color lightgray
@@ -34,7 +34,7 @@ select clear
 #Nterm
 select /A:303-310
 transparency sel 0 target ac
-open  ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_N.defattr
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_N.defattr
 
 select  :322 :323 :324  :325 :326 :327 :328 :331 :339 :372 :376
 transparency sel 0 target ac
@@ -49,4 +49,4 @@ turn y -145
 view sel
 
 ###move a bit to the right to see the Nterm and zoom manually
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_dddg_N_binding_bindingSite_median_illustrator_zoom.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_dddg_N_binding_bindingSite_median_illustrator_zoom.png width 2914 height 2573 supersample 3 transparentBackground true
