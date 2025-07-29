@@ -7,7 +7,7 @@ date: "2025-07-29"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"~base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -311,7 +311,6 @@ if (dataset_value == "dddg_N") {
 
   print(p)
  ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_medians_",dataset_value,".pdf"), width=8, height=8)
-
 }
 ```
 
