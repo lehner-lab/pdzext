@@ -1,0 +1,377 @@
+---
+title: "figure6 allostery"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-02-07"
+---
+
+```{r setup}
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+knitr::opts_knit$set(root.dir = base_dir)
+setwd(base_dir)
+```
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+library(scales)
+library(tidyr)
+library(ggrepel)
+```
+
+
+#tables used
+```{r}
+mutations_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
+signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
+```
+
+
+#transform exponencial decay function to linear curve log(y)=log(a)+b⋅x
+```{r}
+# Function to fit an exponential decay curve using a linear transformation
+fit_exponential_curve_linear_transformed<-function(xvector,yvector,tit,plotfig=TRUE,writepar=FALSE){
+  # Convert to data.table
+data <- data.table(x = xvector, y = yvector)
+  # Perform linear regression on log-transformed y
+fit <- lm(log(y) ~ x, data = data)
+
+summary(fit)
+# Extract coefficients
+ln_a <- coef(fit)[1]  # Intercept = ln(a)
+b <- coef(fit)[2]    #slope (b is negative)
+
+# Convert ln(a) back to a
+a <- exp(ln_a)
+
+# Display estimated parameters
+cat("Estimated a",dataset_value,":", a, "\n")
+cat("Estimated b",dataset_value,":", b, "\n")
+
+# Return estimated parameters as a list
+  return(list(a = a, b = b))
+}
+```
+
+#fitting of decay curve and plots Figure 6a
+```{r}
+all_ddg_table_abs_allo_noBI<-data.table()#create a data.table with the decay curve fitting results below
+  
+   name <- "mutations_distances_annotation_median_rSASA_Binding_merged"
+    dt <- get(name)
+    dataset_values<-c("1st_order_ddg","calculated_ddg_N","calculated_ddg_C","calculated_ddg_NC")
+    
+for (dataset_value in dataset_values) {
+  subset_dt <- dt[dataset == dataset_value]
+   subset_dt$abs_total_mean_kcal_mol <- abs(subset_dt$total_mean_kcal_mol)
+median_abs<-median(subset_dt$abs_total_mean_kcal_mol)
+mad_abs <- mad(subset_dt$abs_total_mean_kcal_mol, constant = 1, na.rm = TRUE)  # constant=1 to not rescale
+threshold_abs_median <- median_abs + mad_abs 
+  
+  
+  valid_rows <- !is.na(subset_dt$scHAmin_ligand) & !is.na(subset_dt$total_mean_kcal_mol) & subset_dt$binding_interfase==F #the binding interface is not use for the fitting
+  
+  
+  xvector_starting=subset_dt[valid_rows]$scHAmin_ligand#minimun distance from the side chain heavy atom to the ligand
+  yvector_starting=abs(subset_dt[valid_rows]$total_mean_kcal_mol)#absolute ddg values
+    
+  # Fit the exponential decay model
+    exponential_curve_fitted<-fit_exponential_curve_linear_transformed(xvector=xvector_starting,yvector=yvector_starting,tit=dataset_value,plotfig=F,writepar=FALSE)
+    
+     # Extract coefficients
+  a_fit <- exponential_curve_fitted$a
+  b_fit <- exponential_curve_fitted$b
+
+    #this model is a*e**bx
+    subset_dt[,allo_predicted:=a_fit*exp(b_fit*scHAmin_ligand)]
+    subset_dt[,allo_decay_residual:=abs(total_mean_kcal_mol)-allo_predicted]
+    subset_dt[binding_interfase==T,allo_decay_residual:=NA]
+    subset_dt[,label_id:=wt_Pos]
+    
+   # Plot results
+      p<-ggplot(subset_dt, aes(x=scHAmin_ligand, y=abs(total_mean_kcal_mol)))+
+        geom_point(data=subset_dt[scHAmin_ligand>5 & Pos != "373"], color="black",alpha=0.2,size=2)+
+        geom_point(data=subset_dt[scHAmin_ligand<=5], alpha=0.3, color="#ff7f7f", size=2)+#binding interface residues in red
+         geom_point(data=subset_dt[Pos=="312"], alpha=0.7, color="magenta", size=2)+#mutations for residue 312(change for checking any residue)
+      
+      geom_line(data=subset_dt, aes(x=scHAmin_ligand, y=allo_predicted), color="#9999ff", size=1)+#decay curve
+      geom_hline(yintercept=threshold_abs_median, color = "#9999ff", linetype = "dashed")+#threshold cut off
+      theme_classic()+
+         theme(aspect.ratio=1)+
+     
+      xlab("minimum distance to the ligand (A)")+
+      ylab("abs(total_mean_kcal_mol)")+
+      ggtitle(paste0(dataset_value))
+      
+      print(p)
+      ggsave(paste0("Data_pdzext/output_pdzext/Fig_6a_",dataset_value,".pdf"),width=8, height=5)
+      
+      all_ddg_table_abs_allo_noBI<-rbind(all_ddg_table_abs_allo_noBI, subset_dt)#create a data.table with the decay curve fitting results
+}
+```
+
+#find allosteric hotspots
+```{r}
+#i have into account the z_score for significantly different from 0 total_mean_kcal_mol (fdr_stab_destab)
+#i defined fdr_stab_destab<0.05
+#I do fisher test for enrichment in significant mutations by residue
+
+#####here we choose the residues enriched in significant mutations as in figure 3 and 4
+ name1 <- "signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged"
+    dt1 <- get(name1)
+    dataset_values<-c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")
+    
+for (dataset_value in dataset_values) {
+  subset_dt1 <- dt1[dataset == dataset_value]
+  
+n_sign_ddg<-subset_dt1[signif_enrichment==TRUE]
+assign(paste0("n_sign_ddg_",dataset_value),n_sign_ddg)
+
+#####here we perform the test for allostery testing for the distance of residuals to the decay curve
+name2<-  "all_ddg_table_abs_allo_noBI"
+    dt2 <- get(name2)
+    dataset_all<-c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")
+
+  subset_dt2 <- dt2[dataset == dataset_value]
+test_results <- subset_dt2[
+  !is.na(allo_decay_residual),  # Ensure allo_decay_residual is not NA so we perform the test only in non-BindingInterface residues
+  .(
+    p_value_allost = if (.N > 1 && length(unique(allo_decay_residual)) > 1) {
+      t.test(allo_decay_residual, mu = 0, alternative = "greater")$p.value
+    } else {
+      NA_real_  # Use numeric NA for consistency
+    }
+  ),
+  by = .(Pos)
+]
+
+test_results[, p_adjusted_allost := p.adjust(p_value_allost, method = "fdr")] #calculates fdr of being above the decay curve as residue, for all the residue even those that are above the curve just because the curve for far away values is very low. for that i need to filter by n_sign_ddg that takes into account the ddg distribution t-test
+
+assign(paste0("test_results_",dataset_value),test_results)
+
+# Merge with `n_sign_ddg` to keep only hotspot candidates
+fisher_results_significant <- merge(test_results, n_sign_ddg, by = "Pos", all.x = TRUE)
+fisher_results_significant[,significant_allost_residue:=F] 
+fisher_results_significant[p_adjusted_allost<0.1 & !is.na(wt_Pos), significant_allost_residue:=T]
+
+
+assign(paste0("fisher_results_significant",dataset_value),fisher_results_significant)
+
+fisher_significant_distributions<-fisher_results_significant[significant_allost_residue==T]
+
+# Assign the new table dynamically
+  assign(paste0("fisher_significant_distributions_", dataset_value), fisher_significant_distributions)
+}
+```
+
+
+#modify "all_ddg_table_abs_allo_noBI" to add columns showing allosteric significance
+```{r}
+#add fdr_signif to all_ddg_table_abs_allo_noBI
+name <- "all_ddg_table_abs_allo_noBI"
+dt <- get(name)
+
+for (dataset_value in unique(dt$dataset)) {
+  # Get the corresponding Fisher test results
+  fisher_results_name <- paste0("fisher_significant_distributions_", dataset_value)
+  fisher_results <- get(fisher_results_name)
+
+  # Merge fdr_signif with the original dataset
+  dt[dataset == dataset_value, fdr_signif := fisher_results[.SD, on = "Pos", fdr_signif]]
+  dt[dataset == dataset_value, p_adjusted_allost := fisher_results[.SD, on = "Pos", p_adjusted_allost]]
+  dt[dataset == dataset_value, significant_allost_residue := fisher_results[.SD, on = "Pos", significant_allost_residue]]
+  dt[is.na(significant_allost_residue), significant_allost_residue:=F]
+  dt[dataset == dataset_value, significant_allost_mutation := significant_allost_residue==TRUE&significant_mutation==TRUE]
+}
+
+# Save the updated table back
+assign(name, dt)
+```
+
+#plot Figure 6b: allosteric hotspots violin plots
+```{r}
+custom_colors <- c("1st_order_ddg"="blue","calculated_ddg_N"="#d783ffff","calculated_ddg_C"="#d4fb79ff",  "calculated_ddg_NC"="#d6d6d6ff")
+
+all_ddg_table_abs_allo_noBI[, dataset := factor(dataset, 
+    levels = c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC"))]
+
+ggplot(all_ddg_table_abs_allo_noBI[binding_interfase==F&dataset %in% c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")])+
+  geom_hline(aes(yintercept = 0), color="grey")+
+  geom_violin(aes(x=factor(Pos), y=allo_decay_residual, fill=dataset, color=significant_allost_residue),position = position_dodge(width = 0.9))+
+  geom_dotplot(aes(x=factor(Pos), y=allo_decay_residual, fill=dataset,color=significant_allost_residue),binaxis = 'y', stackdir = 'center', dotsize = 0.5, alpha = 0.7,position = position_dodge(width = 0.9)) +  # Add dotplot for individual points)+
+  theme_pubr()+
+  scale_fill_manual(values=custom_colors)+
+  scale_color_manual("significant_allost_residue==TRUE", values=c("grey80", "black"))+
+ 
+  facet_wrap(~Pos, scales="free_x", nrow=5)+
+  ggtitle("significant_allost_residue==TRUE")+
+  
+  theme(legend.position="right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  
+
+ggsave("Data_pdzext/output_pdzext/Fig_6b.pdf",width=15, height=15)
+```
+
+####heat maps of the allosteric positions
+```{r}
+  name <- "mutations_distances_annotation_median_rSASA_Binding_merged"
+    dt <- get(name)
+    
+    subset_dt <- dt[dataset %in% c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")]
+     subset_dt[, dataset := factor(dataset, 
+    levels = c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC"))]
+     positions <- c("312", "318", "329", "330", "336", "337", "341", "347", "357", "373", "375")
+     subset1_dt <- subset_dt[Pos %in% positions]
+     subset1_dt[, Pos := factor(Pos, levels = positions)]
+    
+   subset1_dt$mutant_colored<-factor(subset1_dt$mutant_colored,levels=c(
+  "<span style='color:orange'>S</span>",                                                                    "<span style='color:orange'>T</span>",
+  "<span style='color:orange'>N</span>",
+  "<span style='color:orange'>Q</span>",
+  "<span style='color:red'>D</span>",
+  "<span style='color:red'>E</span>",
+  "<span style='color:blue'>K</span>",
+  "<span style='color:blue'>R</span>",
+  "<span style='color:blue'>H</span>",
+  "<span style='color:violet'>G</span>",
+  "<span style='color:violet'>P</span>",
+  "<span style='color:violet'>C</span>",
+  "<span style='color:pink'>M</span>",
+  "<span style='color:pink'>A</span>",
+  "<span style='color:pink'>L</span>",
+  "<span style='color:pink'>I</span>",
+  "<span style='color:pink'>V</span>",
+  "<span style='color:pink'>F</span>",
+  "<span style='color:pink'>Y</span>",
+  "<span style='color:pink'>W</span>"))    
+
+   subset1_dt[, wt_Pos := factor(Pos, levels = positions)]
+  subset1_dt <- complete(
+  subset1_dt,
+  wt_Pos,
+  dataset,
+  mutant_colored,
+  fill = list(total_mean_kcal_mol = NA)
+)
+  subset1_dt <- as.data.table(subset1_dt)
+subset1_dt[, is_na := is.na(total_mean_kcal_mol)]
+
+p<-ggplot(subset1_dt,aes(x=dataset,y=mutant_colored,fill=total_mean_kcal_mol))+
+     geom_tile()+
+  geom_text(
+    data = subset1_dt[is_na == TRUE],
+    aes(label = "-"),
+    color = "black", size = 5, na.rm = TRUE
+  ) +
+  geom_point(
+   data = subset1_dt[class %in% c("stabilizing", "destabilizing")],
+   aes(x = dataset, y = mutant_colored),
+  shape = 18, color = "black", size = 0.5
+  ) +
+    facet_wrap(~ wt_Pos, nrow = 1) +
+  scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"),na.value = "#f5f5f5",guide = "colorbar", values = scales::rescale(c(-1.3, 0, 1.3)),limits = c(-1.3, 1.3)) +
+    coord_fixed(ratio = 1)+    
+     theme_classic()+
+    theme(
+  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+  axis.text.y = element_markdown(),
+  legend.key.size = unit(0.5, "cm"),
+  legend.text = element_text(size = 8),
+  legend.title = element_text(size = 0))+
+       
+  ggtitle("Energy term heatmaps for multiple positions")
+    
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_6c.pdf"), width=15, height=5)
+  print(p)
+```
+
+#plot figure 6e
+```{r}
+dataset_values<-c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")
+name <- "all_ddg_table_abs_allo_noBI"
+dt <- get(name)
+
+for (dataset_value in dataset_values) {
+   subset_dt <- dt[dataset == dataset_value]
+   subset_dt_unique <- subset_dt[, .SD[1], by = Pos]
+   
+   label_dt <- subset_dt_unique[significant_allost_residue == TRUE]
+   label_11hotspots <- subset_dt_unique[Pos %in% c("312","318","329","330","336","337","341","347","357","373","375")]
+   
+   subset1_dt<-subset_dt_unique[median_energy<0]
+  subset2_dt<-subset_dt_unique[median_energy>0]
+  
+  
+  p<-ggplot(subset_dt_unique, aes(x=abs(median_energy),y=rSASA_1be9))+
+    geom_point(shape = 21,color="black", fill=NA,size=3)+
+    geom_point(data = label_11hotspots,
+                shape = 21,color="black", fill="darkgrey",size=5)+
+     geom_point(data = subset_dt_unique[significant_allost_residue == TRUE],
+           shape = 21, color = "black", fill = "red", size = 5)+
+     
+    
+    geom_text(data = label_11hotspots,
+              aes(x = abs(median_energy), y = rSASA_1be9, label = Pos),
+              color = "black", size = 8, vjust = -1) +
+    geom_text(data = label_dt,
+              aes(x = abs(median_energy), y = rSASA_1be9, label = Pos),
+              color = "red", size = 8, vjust = -1) +
+    
+     scale_color_manual(values = custom_colors) +
+    geom_hline(yintercept = 0.2, color = "blue", linetype = "dashed") +
+    
+    # Correlation for all
+    stat_cor(data = subset_dt_unique, aes(x = abs(median_energy), y = rSASA_1be9), color = "black",size=10,label.x = 0, label.y = max(subset_dt_unique$rSASA_1be9, na.rm = TRUE)*0.9,
+           hjust = 0) +
+    
+    theme_classic()+
+     theme(aspect.ratio=1)+
+  theme(axis.text.x = element_text(size = 15),  # Adjust size of x-axis text
+            axis.text.y = element_text(size = 15),  # Adjust size of y-axis text
+            axis.title.x = element_text(size = 15), # Adjust size of x-axis title
+            axis.title.y = element_text(size = 15),
+            legend.position = "none") +
+    ggtitle(dataset_value)
+  print(p)
+  ggsave(paste0("Data_pdzext/output_pdzext/Fig_6e_",dataset_value,".pdf"), width=8, height=5)
+}
+
+```
+#plot figure 6g: test Pos 341 for +C vs -C
+```{r}
+  name <- paste0("mutations_distances_annotation_median_rSASA_Binding_merged")
+    dt <- get(name)
+    subset_dt<- dt[Pos==341&dataset%in%c("1st_order_ddg","calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC"),]
+    subset_dt[, dataset := factor(dataset, levels = c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC"))]
+    
+group_map <- list(
+  Group1 = c("1st_order_ddg", "calculated_ddg_N"),
+  Group2 = c("calculated_ddg_C", "calculated_ddg_NC")
+)
+subset_dt[, group := fifelse(dataset %in% group_map$Group1, "Group1", "Group2")]
+# Aggregate to one value per group per id
+agg_dt <- subset_dt[, .(mean_energy = mean(total_mean_kcal_mol, na.rm = TRUE)), by = .(id, group)]
+    # Reshape for paired t-test
+wide_dt <- dcast(agg_dt, id ~ group, value.var = "mean_energy")
+t_res <- t.test(wide_dt$Group1, wide_dt$Group2, paired = TRUE)
+print(t_res)
+
+p_value_label <- paste0("Paired t-test p = ", signif(t_res$p.value, 3))
+    
+p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
+ 
+ geom_point(width = 0.2, alpha = 0.7, size = 5, color="#e85d47") +
+   
+   geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.5) +
+  geom_line(aes(group = id), color = "black", alpha = 0.3) +
+  
+  theme_classic() +
+   theme(aspect.ratio=1)+
+  ggtitle(p_value_label)
+
+  print(p)
+    ggsave(paste0("Data_pdzext/output_pdzext/Fig_6g.pdf"), width=7, height=7)
+```
