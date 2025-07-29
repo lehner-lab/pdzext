@@ -1,3 +1,5 @@
+#####paste these commands in ChimeraX command line
+
 #Figure 3c dddgf(delN)
 
 open ~base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
