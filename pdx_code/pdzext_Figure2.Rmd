@@ -5,7 +5,7 @@ date: "2025-07-28"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"base_dir/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
