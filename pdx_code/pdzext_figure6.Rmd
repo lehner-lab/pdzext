@@ -7,7 +7,7 @@ date: "2025-02-07"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"~base_dir/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -22,13 +22,11 @@ library(tidyr)
 library(ggrepel)
 ```
 
-
 #tables used
 ```{r}
 mutations_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
 signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
 ```
-
 
 #transform exponencial decay function to linear curve log(y)=log(a)+b⋅x
 ```{r}
@@ -167,7 +165,6 @@ fisher_significant_distributions<-fisher_results_significant[significant_allost_
 }
 ```
 
-
 #modify "all_ddg_table_abs_allo_noBI" to add columns showing allosteric significance
 ```{r}
 #add fdr_signif to all_ddg_table_abs_allo_noBI
@@ -210,12 +207,10 @@ ggplot(all_ddg_table_abs_allo_noBI[binding_interfase==F&dataset %in% c("1st_orde
   ggtitle("significant_allost_residue==TRUE")+
   
   theme(legend.position="right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  
-
 ggsave("Data_pdzext/output_pdzext/Fig_6b.pdf",width=15, height=15)
 ```
 
-####heat maps of the allosteric positions
+#plot figure 6c
 ```{r}
   name <- "mutations_distances_annotation_median_rSASA_Binding_merged"
     dt <- get(name)
@@ -338,7 +333,6 @@ for (dataset_value in dataset_values) {
   print(p)
   ggsave(paste0("Data_pdzext/output_pdzext/Fig_6e_",dataset_value,".pdf"), width=8, height=5)
 }
-
 ```
 #plot figure 6g: test Pos 341 for +C vs -C
 ```{r}
