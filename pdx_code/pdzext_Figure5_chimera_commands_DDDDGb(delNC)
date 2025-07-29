@@ -1,0 +1,53 @@
+#####paste these commands in ChimeraX command line
+
+#Figure 5c ddddgb(delNC)
+
+open ~base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
+
+set bgColor white
+color light gray
+lighting flat
+graphics silhouettes true
+lighting shadows false
+
+
+select /B
+color sel cornflower blue
+
+select :303-310
+color sel yellow green
+
+select :395-402
+color sel violet
+
+select  :311 :378-394 :319 :332 :351 :363 :356
+color sel wheat
+
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_ddddg_NC.defattr
+
+color byattribute r:energy_term #!1 target abcs palette -0.34,#008080:0,gainsboro:0.34,#805300 key false
+
+select  :333 :334 :337 :345 :355 :371 :373 :397 :401 :396 :400 :339 :328 :327 :372 :331
+show sel atoms
+
+contacts :355 :397 restrict both name contact1 color #ff40ff
+contacts :355 :401 restrict both name contact2 color #ff40ff
+contacts :355 :339 restrict both name contact8
+contacts :337 :396 restrict both name contact3 color #ff40ff
+contacts :337 :397 restrict both name contact4 color #ff40ff
+contacts :337 :400 restrict both name contact5 color #ff40ff
+contacts :337 :328 restrict both name contact6
+contacts :337 :327 restrict both name contact7
+contacts :334 :331 restrict both name contact13
+contacts :334 :337 restrict both name contact12 color #805300 
+
+contacts :373 :372 restrict both name contact9
+contacts :373 :376 restrict both name contact10
+contacts :371 :372 restrict both name contact11
+
+select clear 
+save ~base_dir/Data_pdzext/output_pdzext/chimera_ddddg_NC_binding_median_illustrator.png width 2914 height 2573 supersample 3 transparentBackground true
+
+turn y -150
+save ~base_dir/Data_pdzext/output_pdzext/chimera_ddddg_NC_binding_median_illustrator_turn180.png width 2914 height 2573 supersample 3 transparentBackground true
+
