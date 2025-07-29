@@ -19,4 +19,4 @@ The following packages are required (package_version):
 - Cairo_1.6-2
 - ggrastr_1.0.2
 - ggrepel_0.9.6
-
+- tidyr_1.3.1
