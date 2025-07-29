@@ -1,0 +1,64 @@
+#####paste these commands in ChimeraX command line
+
+#Figure 6f Surface N-PDZ
+
+open ~base_dir/Data_pdzext/PDB_pdzext/1be9_calculated_ddg_C.pdb
+
+open ~base_dir/Data_pdzext/PDB_pdzext/1be9_ligand.pdb
+
+ui tool show "Show Sequence Viewer"
+sequence chain /A
+
+select /A
+set bgColor white
+color light gray
+lighting flat
+graphics silhouettes true
+lighting shadows false
+
+
+
+select /B
+color sel cornflower blue
+
+select :303-310
+color sel yellow green
+
+
+
+
+select /A
+surface sel
+
+
+
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_calculated_ddg_C.defattr
+
+color byattribute r:energy_term #!1 target abcs palette -1,#898ac0:0,gainsboro:1,#e85d47 key false
+
+
+select  :311 :378-394 :319 :332 :351 :363 :356
+color sel wheat
+
+select clear
+
+
+select /A:303-394
+view sel
+
+select  :312 :318 :329 :330 :336 :337 :341 :347 :357 :373 :375
+
+turn y -180
+turn z 30
+
+
+turn x -30
+
+save ~base_dir/Data_pdzext/output_pdzext/chimera_Npdz_allostery_surface1.png transparentBackground true
+
+turn y 100
+
+save ~base_dir/Data_pdzext/output_pdzext/chimera_Npdz_allostery_surface2.png transparentBackground true
+
+turn y 140
+save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_Npdz_allostery_surface3.png transparentBackground true
