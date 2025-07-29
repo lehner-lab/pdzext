@@ -1,8 +1,8 @@
-#Figure 4c dddgb(delC) binding interface
-
 #####paste these commands in ChimeraX command line
 
-open ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
+#Figure 4c dddgb(delC) binding interface
+
+open ~base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
 
 set bgColor white
 color lightgray
@@ -18,8 +18,6 @@ color sel yellow green
 
 select :395-402
 color sel violet
-
-
 
 trans #1 80 target ac
 
@@ -37,7 +35,7 @@ select clear
 select /A:303-310
 transparency sel 0 target ac
 
-open  ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_C.defattr
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_C.defattr
 
 select  :322 :323 :324  :325 :326 :327 :328 :331 :339 :372 :376 :397 :400
 transparency sel 0 target ac
@@ -54,5 +52,5 @@ turn y -145
 view sel
 
 ###move a bit to the right to see the Nterm and zoom manually
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_dddg_C_binding_bindingSite_median_illustrator_zoom.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_dddg_C_binding_bindingSite_median_illustrator_zoom.png width 2914 height 2573 supersample 3 transparentBackground true
 
