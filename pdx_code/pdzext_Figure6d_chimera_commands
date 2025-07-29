@@ -2,7 +2,7 @@
 
 #Figure 6d hotspots
 
-open /Users/chidalgo/Desktop/mount2/chidalgo/DMS/PDZ_DC_all/chimera/chimera_pdz_new.cxs
+open ~base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
 
 set bgColor white
 color light gray
@@ -67,7 +67,7 @@ select  :311 :378-394 :319 :332 :351 :363 :356
 color sel wheat
 
 select clear
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_allostericResidues.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_allostericResidues.png width 2914 height 2573 supersample 3 transparentBackground true
 
 turn y 180
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_allostericResidues_180.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_allostericResidues_180.png width 2914 height 2573 supersample 3 transparentBackground true
