@@ -70,6 +70,7 @@ print(p)
 ggsave(paste0("Data_pdzext/output_pdzext/Fig_3a_",dataset_value,"_Folding.pdf"), width=15, height=5)
   }
 ```
+
 #plot Figure 3b: heat maps of medians ddg&dddg&ddddg (called "energy_term")
 ```{r}
     name <- "signif_muts_bysite_distances_annotation_median_Folding_merged"
