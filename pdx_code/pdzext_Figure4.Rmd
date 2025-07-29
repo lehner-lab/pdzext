@@ -1,0 +1,166 @@
+---
+title: "Figure 4 binding interface"
+output: html_document
+date: "2025-07-29"
+---
+
+```{r setup}
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+knitr::opts_knit$set(root.dir = base_dir)
+setwd(base_dir)
+```
+
+#R packages
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+library(scales)
+library(ggtext)
+```
+
+#tables used
+```{r}
+signif_muts_bysite_distances_annotation_median_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
+mutations_distances_annotation_median_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
+```
+
+#plot figure 4a: ddg&dddg&ddddg (called energy_term) in binding interface
+```{r}
+    name <- "signif_muts_bysite_distances_annotation_median_Binding_merged"
+    dt <- get(name)
+    
+     dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
+     selected_positions <- c("322", "323", "324", "325", "326", "327", "328", "331", "339", "372", "376")#binding interface residues
+     subset1_dt <- dt[dataset %in% dataset_values & Pos %in% selected_positions]
+      max_abs_median <- round(max(abs(subset1_dt$median_energy)),1)
+     
+for (dataset_value in dataset_values) {
+ subset_dt <- subset1_dt[dataset == dataset_value]
+ subset_dt[, Pos := factor(Pos, levels = selected_positions)]
+subset_dt[, row_label := "median energy_term Binding"]#Create a "dummy" row to plot the heatmap with a single row
+
+    p <- ggplot(subset_dt,aes(x = Pos, y = row_label)) +
+      geom_tile(data = subset_dt,aes(fill = median_energy)) +
+      scale_fill_gradientn(colours = c("#898ac0","#f5f5f5", "#e85d47"), 
+                           limits = c(-max_abs_median,max_abs_median),
+                           values = rescale(c(-max_abs_median,0,max_abs_median)),
+                           name = "median_energy_term") +
+      # Highlight tiles where FDR < 0.1 (from fisher test) by adding a black border
+      geom_tile(data = subset_dt[signif_enrichment==TRUE, ], color = "black", linewidth = 0.7, fill = NA) +
+      
+      labs(x = "Position", y = NULL) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+            legend.key.size = unit(0.5, "cm"),
+            legend.text = element_text(size = 8),
+            legend.title = element_text(size = 10)) +
+      coord_fixed(ratio = 1) +
+      ggtitle(paste0("Binding_",dataset_value," median energy_term and fdr_enrichment_muts<0.1 "))
+    
+    print(p)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_4a_",dataset_value,".pdf"), width=8, height=5)
+}
+```
+
+#plot Figure 4b: heatmaps of interface residues
+```{r}
+  name <- "mutations_distances_annotation_median_Binding_merged"
+    dt <- get(name)
+    subset_dt <- dt[dataset %in% c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")]
+  subset1_dt <- subset_dt[Pos %in% c("322","323","324","325","326","327","328", "331","339","372","376")]
+  subset1_dt[, dataset := factor(dataset, 
+    levels = c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC"))]
+  subset1_dt$mutant_colored<-factor(subset1_dt$mutant_colored,levels=c(
+  "<span style='color:orange'>S</span>",                                                                    "<span style='color:orange'>T</span>",
+  "<span style='color:orange'>N</span>",
+  "<span style='color:orange'>Q</span>",
+  "<span style='color:red'>D</span>",
+  "<span style='color:red'>E</span>",
+  "<span style='color:blue'>K</span>",
+  "<span style='color:blue'>R</span>",
+  "<span style='color:blue'>H</span>",
+  "<span style='color:violet'>G</span>",
+  "<span style='color:violet'>P</span>",
+  "<span style='color:violet'>C</span>",
+  "<span style='color:pink'>M</span>",
+  "<span style='color:pink'>A</span>",
+  "<span style='color:pink'>L</span>",
+  "<span style='color:pink'>I</span>",
+  "<span style='color:pink'>V</span>",
+  "<span style='color:pink'>F</span>",
+  "<span style='color:pink'>Y</span>",
+  "<span style='color:pink'>W</span>"))    
+
+  subset1_dt[, Pos := factor(Pos, levels = unique(Pos[order(Pos)]))]
+  max_abs_mutations <- max(abs(subset_dt$total_mean_kcal_mol))#to have the same scale for all
+    
+p<-ggplot(subset1_dt,aes(x=dataset,y=mutant_colored,fill=total_mean_kcal_mol))+
+     geom_tile()+
+   # Dots for stabilizing/destabilizing mutations
+  geom_point(
+    data = subset1_dt[class %in% c("stabilizing", "destabilizing")],
+    aes(x = dataset, y = mutant_colored),
+    shape = 18, color = "black", size = 0.5
+  ) +
+    facet_wrap(~ Pos, nrow = 1) +
+   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"), values = rescale(c(-max_abs_mutations,0,max_abs_mutations)),guide = "colorbar", limits = c(-max_abs_mutations, max_abs_mutations)) +
+     theme_classic()+
+    theme(
+  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+  axis.text.y = element_markdown(),
+  legend.key.size = unit(0.5, "cm"),
+  legend.text = element_text(size = 8),
+  legend.title = element_text(size = 0))+
+       coord_fixed(ratio = 1)+
+  ggtitle("Energy term heatmaps for interface residues")
+   
+  print(p) 
+ggsave("Data_pdzext/output_pdzext/Fig_4b.pdf", width=15, height=5)
+```
+
+#attributes files for Figure 4c
+```{r}
+# Function to create ChimeraX attribute files
+save_colors_for_chimerax <- function(data, dataset_value, chain_id = "A") {
+
+  # Create a filename and save it in the 'Data_pdzext/output_pdzext/' directory
+  output_file <- paste0("Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_", dataset_value, ".defattr")
+
+  # Open the file for writing
+  con <- file(output_file, "w")
+
+  # Write header for ChimeraX attribute file
+  writeLines(c(
+    "attribute: energy_term",
+    "match mode: 1-to-1",
+    "recipient: residues"
+  ), con)
+
+  # Write each position and its numeric value
+  for (i in seq_len(nrow(data))) {
+    if (!is.na(data$median_energy[i])) {
+      writeLines(paste0("\t:", chain_id, ":", data$Pos[i], "\t", data$median_energy[i]), con)
+    }
+  }
+
+  # Close the file connection
+  close(con)
+}
+
+# Loop through each dataset and create attribute files
+name <- "signif_muts_bysite_distances_annotation_median_Binding_merged"
+dt <- get(name)
+
+for (dataset_value in unique(dt$dataset)) {
+  subset_dt <- dt[dataset == dataset_value]
+  save_colors_for_chimerax(subset_dt, dataset_value)
+}
+
+```
+
+
+
+
+
