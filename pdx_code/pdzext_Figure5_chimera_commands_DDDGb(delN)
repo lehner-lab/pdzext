@@ -22,7 +22,7 @@ color sel violet
 select  :311 :378-394 :319 :332 :351 :363 :356
 color sel wheat
 
-open  ~base_dir/thirdOrder_chimera_energy_term_Binding_median_dddg_N.defattr
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_dddg_N.defattr
 
 color byattribute r:energy_term #!1 target abcs palette -0.34,#008080:0,gainsboro:0.34,#805300 key false
 
@@ -33,7 +33,7 @@ contacts :330 :372 restrict both name contact1
 
 select clear
 
-save ~base_dir/chimera_dddg_N_binding_median_illustrator.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_dddg_N_binding_median_illustrator.png width 2914 height 2573 supersample 3 transparentBackground true
 
 turn y -150
-save ~base_dir/chimera_dddg_N_binding_median_illustrator_turn180.png width 2914 height 2573 supersample 3 transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_dddg_N_binding_median_illustrator_turn180.png width 2914 height 2573 supersample 3 transparentBackground true
