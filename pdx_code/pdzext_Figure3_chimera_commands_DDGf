@@ -1,0 +1,41 @@
+#####paste these commands in ChimeraX command line
+
+#Figure 3c ddgf
+#substitute base_dir with your directory
+
+open base_dir/Data_pdzext/chimera_pdzext/chimera_pdz_new.cxs
+set bgColor white
+color lightgray
+ lighting flat
+graphics silhouettes true
+lighting shadows false
+
+select /B
+hide sel cartoons
+
+select :303-310
+color sel yellow green
+
+select :395-402
+color sel violet
+
+select  :311 :378-394 :319 :332 :351 :363 :356
+color sel wheat
+
+open  base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Folding_median_1st_order_ddg.defattr
+
+color byattribute r:energy_term #!1 target abcs palette -2.15,#898ac0:0,gainsboro:2.15,#e85d47 key false
+
+select  :366 :362 :359 :358 :357 :353 :341 :338 :336 :335 :325 :324 :316 :312
+show sel atoms
+
+select clear
+
+view orient
+turn y -125
+
+save base_dir/Data_pdzext/output_pdzext/Fig_3c_chimera_1st_order_ddg_folding_median_illustrator.png width 2914 height 2573 supersample 3 transparentBackground true
+
+turn y -180
+
+save base_dir/Data_pdzext/output_pdzext/Fig_3c_chimera_1st_order_ddg_folding_median_illustrator_turn180.png width 2914 height 2573 supersample 3 transparentBackground true
