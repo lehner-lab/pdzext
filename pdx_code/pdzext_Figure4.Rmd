@@ -5,7 +5,7 @@ date: "2025-07-29"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"~/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -157,7 +157,6 @@ for (dataset_value in unique(dt$dataset)) {
   subset_dt <- dt[dataset == dataset_value]
   save_colors_for_chimerax(subset_dt, dataset_value)
 }
-
 ```
 
 
