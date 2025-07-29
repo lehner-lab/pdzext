@@ -2,9 +2,9 @@
 
 #Figure 6f Surface N-PDZ-C
 
-open ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/PDB_pdzext/1be9_1st_order_ddg.pdb
+open ~base_dir/Data_pdzext/PDB_pdzext/1be9_1st_order_ddg.pdb
 
-open ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/PDB_pdzext/1be9_ligand.pdb
+open ~base_dir/Data_pdzext/PDB_pdzext/1be9_ligand.pdb
 
 
 ui tool show "Show Sequence Viewer"
@@ -29,7 +29,7 @@ color sel violet
 select /A
 surface sel
 
-open  ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_1st_order_ddg.defattr
+open  ~base_dir/Data_pdzext/output_pdzext/thirdOrder_chimera_energy_term_Binding_median_1st_order_ddg.defattr
 
 color byattribute r:energy_term #!1 target abcs palette -1,#898ac0:0,gainsboro:1,#e85d47 key false
 
@@ -51,11 +51,11 @@ turn z 30
 
 turn x -30
 
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface1.png transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface1.png width 2914 height 2573 supersample 3 transparentBackground true
 
 turn y 100
 
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface2.png transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface2.png width 2914 height 2573 supersample 3 transparentBackground true
 
 turn y 140
-save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface3.png transparentBackground true
+save ~base_dir/Data_pdzext/output_pdzext/chimera_NpdzC_allostery_surface3.png width 2914 height 2573 supersample 3 transparentBackground true
