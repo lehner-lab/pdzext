@@ -1,0 +1,73 @@
+#####paste these commands in ChimeraX command line
+
+#Figure 6d hotspots
+
+open /Users/chidalgo/Desktop/mount2/chidalgo/DMS/PDZ_DC_all/chimera/chimera_pdz_new.cxs
+
+set bgColor white
+color light gray
+lighting flat
+graphics silhouettes true
+lighting shadows false
+
+select /B
+color sel cornflower blue
+
+select :303-310
+color sel yellow green
+
+select :395-402
+color sel violet
+
+select :322 :323 :324 :325 :326 :327 :328 :331 :339 :372 :376
+
+color (#!1 & sel) light pink
+
+select :318 :329 :330 :336 :341 :347
+color (#!1 & sel) red
+
+select :312 :375
+
+color (#!1 & sel) cyan
+
+select :357
+color sel orange
+
+select :337
+color sel dark green
+
+select :373
+color sel yellow
+
+select /B
+hide sel cartoons
+
+select :318 :329 :330 :336 :341 :347 :312 :375 :357 :337 :373 :310 :322 :323 :324 :325 :326 :327 :328 :331 :339 :372 :376 :396 :397 :400
+show sel atoms
+select clear
+contacts :318 :323 restrict both name contact1
+contacts :329  :372 restrict both name contact2
+contacts :330 :372 restrict both name contact7
+contacts :336 :327 restrict both name contact3
+contacts :337 :328 restrict both name contact4
+contacts :347 :323 restrict both name contact5
+contacts :347 :325 restrict both name contact6
+contacts :375 :372 restrict both name contact14
+contacts :357 :312 restrict both name contact8 color #805300
+contacts :375 :336 restrict both name contact13 color #805300
+contacts :337 :396 restrict both name contact9 color #ff40ff
+contacts :337 :397 restrict both name contact10 color #ff40ff
+contacts :337 :400 restrict both name contact11 color #ff40ff
+contacts :312 :310 restrict both name contact12 color #9ACD32
+
+select clear
+view
+
+select  :311 :378-394 :319 :332 :351 :363 :356
+color sel wheat
+
+select clear
+save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_allostericResidues.png width 2914 height 2573 supersample 3 transparentBackground true
+
+turn y 180
+save ~/Desktop/mount2/chidalgo/pdzext/Data_pdzext/output_pdzext/chimera_allostericResidues_180.png width 2914 height 2573 supersample 3 transparentBackground true
