@@ -15,7 +15,8 @@ setwd(base_dir)
 library(data.table)
 library(ggplot2)
 library(ggpubr)
-library("readxl")
+library(readxl)
+library(scales)
 ```
 
 #tables used
