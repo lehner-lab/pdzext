@@ -1,11 +1,11 @@
 ---
 title: "fig3 folding dddg N and C"
 output: html_document
-date: "2025-01-15"
+date: "2025-07-29"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"base_dir/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
