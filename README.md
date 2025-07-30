@@ -1,5 +1,4 @@
-[[<img width="191" height="20" alt="image" src="https://github.com/user-attachments/assets/5a0514b7-3586-44f6-970a-9ced3e5928f1" />](https://zenodo.org/badge/DOI/10.5281/zenodo.16411462.svg)](https://doi.org/10.5281/zenodo.16411462)
-
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16411462.svg)](https://doi.org/10.5281/zenodo.16411462)
 # Allosteric and Energetic Remodeling by Protein Domain Extensions
 Welcome to the GitHub repository for the following publication: Allosteric and Energetic Remodeling by Protein Domain Extensions (Cristina Hidalgo-Carcedo, Andre J. Faure, Aina Martí-Aranda, Taraneh Zarin and Ben Lehner 2025).
 Here you'll find source code for computational analyses and to reproduce the figures in the paper.
