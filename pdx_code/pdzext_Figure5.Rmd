@@ -7,7 +7,7 @@ date: "2025-07-29"
 ---
 
 ```{r setup}
-base_dir<-"~base_dir"
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -34,11 +34,25 @@ dt <- get(name)
 
 for (dataset_value in dataset_values) {
   subset_dt <- dt[dataset == dataset_value]
-  subset_dt$abs_total_mean_kcal_mol <- abs(subset_dt$total_mean_kcal_mol)
-median_abs<-median(subset_dt$abs_total_mean_kcal_mol)
-mad_abs <- mad(subset_dt$abs_total_mean_kcal_mol, constant = 1, na.rm = TRUE)  # constant=1 to not rescale
-threshold_abs_median <- median_abs + mad_abs
   
+ #Z-test and definition of significant mutations for each dataset_value:
+subset_dt$abs_total_mean_kcal_mol <- abs(subset_dt$total_mean_kcal_mol)
+subset_dt[, `:=`(
+    median_abs = median(abs_total_mean_kcal_mol, na.rm = TRUE),
+    mad_abs = mad(abs_total_mean_kcal_mol, constant = 1, na.rm = TRUE)
+  ), by = dataset]
+  subset_dt[, threshold_abs_median := median_abs + mad_abs]
+
+subset_dt[, z_stab_destab:=(abs(total_mean_kcal_mol)-(0))/abs(total_std_kcal_mol)]
+subset_dt[, p_value_stab_destab :=pnorm(z_stab_destab, lower.tail = FALSE), by = dataset]  # one-tailed right
+subset_dt[, fdr_stab_destab := p.adjust(p_value_stab_destab, method = "fdr"), by = dataset]
+
+subset_dt[,class:="no change"]
+subset_dt[fdr_stab_destab<0.05 & total_mean_kcal_mol< -threshold_abs_median,class:="stabilizing"]
+subset_dt[fdr_stab_destab<0.05 & total_mean_kcal_mol> threshold_abs_median,class:="destabilizing"]
+subset_dt[,significant_mutation:=ifelse(class %in% c("stabilizing","destabilizing"),TRUE,FALSE)]
+
+#plot  
 pos_df<-subset_dt[,c("Pos","wt_Pos")]
 pos_df<-pos_df[!duplicated(pos_df),]
 pos_df<-pos_df[order(pos_df$Pos),]
@@ -73,7 +87,7 @@ ggsave(paste0("Data_pdzext/output_pdzext/Fig_5a_",dataset_value,"_Binding.pdf"),
 ```
 #plot Figure 5b: heat maps of medians ddg&dddg&ddddg (called "energy_term")
 ```{r}
-    name <- "signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged"
+    name <- "mutations_distances_annotation_median_rSASA_Binding_merged"
     dt <- get(name)
     dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
 
@@ -81,6 +95,48 @@ for (dataset_value in dataset_values) {
   # Subset the data for the current dataset value
   subset_dt <- dt[dataset == dataset_value]
   subset_dt[, row_label := "median energy_term Binding"]
+  
+  #calculate enrichment in significant mutations: fisher test  
+subset_dt[,significant:=ifelse(class %in% c("stabilizing","destabilizing"),TRUE,FALSE)]
+#individual residue enrichments
+signif_muts_bysite<-subset_dt[, .(signif = length(which(significant==TRUE)),
+no_signif = length(which(significant==FALSE)),
+wt_aa = unique(wt)), by = Pos]
+
+#signif vs non-signif contingency table
+
+#odds_signif
+signif_muts_bysite$or<-unlist(apply(signif_muts_bysite,MARGIN=1,FUN=function(row){
+signif<-as.numeric(row[2]) # signif at position
+non_signif<-as.numeric(row[3]) # non-signif at position
+other_signif<-sum(signif_muts_bysite[[2]], na.rm = TRUE)-signif # signif in other positions
+other_non_signif<-sum(signif_muts_bysite[[3]], na.rm = TRUE)-non_signif # non-signif in other positions
+contingency_signif <- matrix(c(signif, non_signif, other_signif, other_non_signif), nrow = 2, byrow = TRUE)
+fisher_signif <- fisher.test(contingency_signif)
+return(fisher_signif$estimate)}))
+
+#pvalue_signif
+signif_muts_bysite$p_signif<-unlist(apply(signif_muts_bysite,MARGIN=1,FUN=function(row){
+signif<-as.numeric(row[2]) # signif at position
+non_signif<-as.numeric(row[3]) # non-signif at position
+other_signif<-sum(signif_muts_bysite[[2]], na.rm = TRUE)-signif # signif in other positions
+other_non_signif<-sum(signif_muts_bysite[[3]], na.rm = TRUE)-non_signif # non-signif in other positions
+contingency_signif <- matrix(c(signif, non_signif, other_signif, other_non_signif), nrow = 2, byrow = TRUE)
+fisher_signif <- fisher.test(contingency_signif)
+return(fisher_signif$p.value)}))
+
+#fdr_signif
+signif_muts_bysite[,fdr_signif:=p.adjust(p_signif)]
+
+signif_muts_bysite[,wt_Pos:=paste0(wt_aa,Pos)]
+signif_muts_bysite[,signif_enrichment:=ifelse(fdr_signif<0.1&or>1,TRUE,FALSE)]
+
+subset_dt <- merge(
+  subset_dt,
+  signif_muts_bysite[, .(Pos, signif_enrichment)],
+  by = "Pos",
+  all.x = TRUE
+)
   
     if (dataset_value == "1st_order_ddg") {
     # Calculate separate color scale limits for stabilizing and destabilizing
@@ -311,6 +367,7 @@ if (dataset_value == "dddg_N") {
 
   print(p)
  ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_medians_",dataset_value,".pdf"), width=8, height=8)
+
 }
 ```
 
