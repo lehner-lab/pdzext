@@ -304,12 +304,30 @@ for (assay in assays) {
 
   subset_dt <- dt[dataset %in% dataset_values]
   subset_dt[, dataset := factor(dataset, levels = c("ddddg_NC", "dddg_C", "dddg_N","1st_order_ddg"))]
+  subset_dt[, assay := assay]
   
+  #Z-test and definition of significant mutations for each dataset_value:
+subset_dt$abs_total_mean_kcal_mol <- abs(subset_dt$total_mean_kcal_mol)
+subset_dt[, `:=`(
+    median_abs = median(abs_total_mean_kcal_mol, na.rm = TRUE),
+    mad_abs = mad(abs_total_mean_kcal_mol, constant = 1, na.rm = TRUE)
+  ), by = dataset]
+  subset_dt[, threshold_abs_median := median_abs + mad_abs]
+
+subset_dt[, z_stab_destab:=(abs(total_mean_kcal_mol)-(0))/abs(total_std_kcal_mol)]
+subset_dt[, p_value_stab_destab :=pnorm(z_stab_destab, lower.tail = FALSE), by = dataset]  # one-tailed right
+subset_dt[, fdr_stab_destab := p.adjust(p_value_stab_destab, method = "fdr"), by = dataset]
+
+subset_dt[,class:="no change"]
+subset_dt[fdr_stab_destab<0.05 & total_mean_kcal_mol< -threshold_abs_median,class:="stabilizing"]
+subset_dt[fdr_stab_destab<0.05 & total_mean_kcal_mol> threshold_abs_median,class:="destabilizing"]
+subset_dt[,significant_mutation:=ifelse(class %in% c("stabilizing","destabilizing"),TRUE,FALSE)]
+  
+  # Get vertical lines and labels
   name2 <- paste0("raw_list_",assay)
     dt2 <- get(name2)
-
+#plot
 p<-ggplot(subset_dt, aes(x=total_mean_kcal_mol, y=dataset))+
-
 geom_jitter(aes(color=class), size = 1, alpha = 0.3,width = 0.005,height = 0.15)+
   scale_color_manual(
     name = "Point Color",
