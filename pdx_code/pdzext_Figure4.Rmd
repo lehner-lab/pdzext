@@ -5,7 +5,7 @@ date: "2025-07-29"
 ---
 
 ```{r setup}
-base_dir<-"~/base_dir"
+base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -28,27 +28,70 @@ mutations_distances_annotation_median_Binding_merged<-fread("Data_pdzext/energie
 
 #plot figure 4a: ddg&dddg&ddddg (called energy_term) in binding interface
 ```{r}
-    name <- "signif_muts_bysite_distances_annotation_median_Binding_merged"
+    name <- "mutations_distances_annotation_median_Binding_merged"
     dt <- get(name)
     
      dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
      selected_positions <- c("322", "323", "324", "325", "326", "327", "328", "331", "339", "372", "376")#binding interface residues
-     subset1_dt <- dt[dataset %in% dataset_values & Pos %in% selected_positions]
-      max_abs_median <- round(max(abs(subset1_dt$median_energy)),1)
+     
+    max_abs_median <- round(max(abs(dt[dataset %in% dataset_values & Pos %in% selected_positions]$median_energy), na.rm = TRUE), 1)
      
 for (dataset_value in dataset_values) {
- subset_dt <- subset1_dt[dataset == dataset_value]
- subset_dt[, Pos := factor(Pos, levels = selected_positions)]
-subset_dt[, row_label := "median energy_term Binding"]#Create a "dummy" row to plot the heatmap with a single row
+  subset_dt_all <- dt[dataset == dataset_value]
+  subset_dt_all[, significant := class %in% c("stabilizing", "destabilizing")]
+  #individual residue enrichments
+signif_muts_bysite<-subset_dt_all[, .(signif = length(which(significant==TRUE)),
+no_signif = length(which(significant==FALSE)),
+wt_aa = unique(wt)), by = Pos]
 
-    p <- ggplot(subset_dt,aes(x = Pos, y = row_label)) +
-      geom_tile(data = subset_dt,aes(fill = median_energy)) +
+#signif vs non-signif contingency table
+
+#odds_signif
+signif_muts_bysite$or<-unlist(apply(signif_muts_bysite,MARGIN=1,FUN=function(row){
+signif<-as.numeric(row[2]) # signif at position
+non_signif<-as.numeric(row[3]) # non-signif at position
+other_signif<-sum(signif_muts_bysite[[2]], na.rm = TRUE)-signif # signif in other positions
+other_non_signif<-sum(signif_muts_bysite[[3]], na.rm = TRUE)-non_signif # non-signif in other positions
+contingency_signif <- matrix(c(signif, non_signif, other_signif, other_non_signif), nrow = 2, byrow = TRUE)
+fisher_signif <- fisher.test(contingency_signif)
+return(fisher_signif$estimate)}))
+
+#pvalue_signif
+signif_muts_bysite$p_signif<-unlist(apply(signif_muts_bysite,MARGIN=1,FUN=function(row){
+signif<-as.numeric(row[2]) # signif at position
+non_signif<-as.numeric(row[3]) # non-signif at position
+other_signif<-sum(signif_muts_bysite[[2]], na.rm = TRUE)-signif # signif in other positions
+other_non_signif<-sum(signif_muts_bysite[[3]], na.rm = TRUE)-non_signif # non-signif in other positions
+contingency_signif <- matrix(c(signif, non_signif, other_signif, other_non_signif), nrow = 2, byrow = TRUE)
+fisher_signif <- fisher.test(contingency_signif)
+return(fisher_signif$p.value)}))
+
+#fdr_signif
+signif_muts_bysite[,fdr_signif:=p.adjust(p_signif)]
+
+signif_muts_bysite[,wt_Pos:=paste0(wt_aa,Pos)]
+signif_muts_bysite[,signif_enrichment:=ifelse(fdr_signif<0.1&or>1,TRUE,FALSE)]
+
+subset_dt_all <- merge(
+  subset_dt_all,
+  signif_muts_bysite[, .(Pos, signif_enrichment)],
+  by = "Pos",
+  all.x = TRUE
+)
+  
+  
+ subset_dt_plot <- subset_dt_all[Pos %in% selected_positions]
+  subset_dt_plot[, Pos := factor(as.character(Pos), levels = as.character(selected_positions))]
+  subset_dt_plot[, row_label := "median energy_term Binding"]
+
+    p <- ggplot(subset_dt_plot,aes(x = Pos, y = row_label)) +
+      geom_tile(data = subset_dt_plot,aes(fill = median_energy)) +
       scale_fill_gradientn(colours = c("#898ac0","#f5f5f5", "#e85d47"), 
                            limits = c(-max_abs_median,max_abs_median),
                            values = rescale(c(-max_abs_median,0,max_abs_median)),
                            name = "median_energy_term") +
       # Highlight tiles where FDR < 0.1 (from fisher test) by adding a black border
-      geom_tile(data = subset_dt[signif_enrichment==TRUE, ], color = "black", linewidth = 0.7, fill = NA) +
+      geom_tile(data = subset_dt_plot[signif_enrichment==TRUE, ], color = "black", linewidth = 0.7, fill = NA) +
       
       labs(x = "Position", y = NULL) +
       theme_classic() +
@@ -157,6 +200,7 @@ for (dataset_value in unique(dt$dataset)) {
   subset_dt <- dt[dataset == dataset_value]
   save_colors_for_chimerax(subset_dt, dataset_value)
 }
+
 ```
 
 
