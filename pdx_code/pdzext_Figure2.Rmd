@@ -190,25 +190,29 @@ aa_color_map <- c(
   "W" = "<span style='color:pink'>W</span>"
 )
 
+
+assay_scale_limits <- list()#Create a list to store global min and max per assay
 for (assay in assays) {
   name <- paste0("mutations_distances_annotation_median_rSASA_",assay,"_merged")
-    dt <- get(name)
-    
-     # Loop through the unique values in the 'dataset' column and generate a plot for each
+    dt_all <- get(name)
+    dt_filtered<-dt_all[dataset %in% dataset_values]
+    assay_scale_limits[[assay]] <- range(dt_filtered$total_mean_kcal_mol, na.rm = TRUE)#Compute min and max across all datasets for this assay
+
 for (dataset_value in dataset_values) {
-  # Subset the data for the current dataset value
-  subset_dt <- dt[dataset == dataset_value]
-  
-  # Make a copy of the original table to avoid altering it in place
+
+subset_dt <- dt_filtered[dataset == dataset_value]
 dt_new <- copy(subset_dt)
+
+min_val <- assay_scale_limits[[assay]][1]
+max_val <- assay_scale_limits[[assay]][2]
 
 # Extract unique Pos and wt combinations
 wt_rows <- unique(dt_new[, .(Pos, wt, dataset)])
 
-#  Create the new rows with total_mean_kcal_mol = 0
+#  Create the new rows with total_mean_kcal_mol = NA
 wt_rows[, `:=`(
   mutant = wt,
-  total_mean_kcal_mol = 0
+  total_mean_kcal_mol = NA
 )]
 # Add colored label
     wt_rows[, mutant_colored := aa_color_map[wt]]
@@ -249,26 +253,28 @@ rSASA_class_df[, wt_colored := paste0(
 )]
 
 
-  pos_df<-subset_dt[,c("Pos","wt_Pos","wt","Pos_class_reduced","Pos_class")]
+  pos_df<-subset_dt[,c("Pos","wt_Pos","wt")]
   pos_df<-pos_df[!duplicated(pos_df),]
   pos_df<-pos_df[order(pos_df$Pos),]
   
   pos_df <- merge(pos_df, rSASA_class_df[, .(Pos, wt_colored)], by = "Pos", all.x = TRUE)
-  
-     if (assay == "Folding") {#max and min of alll datasets
-  min_val <- -3.06
-  max_val <- 3.06
+ 
   
   p<-ggplot(dt_final,aes(x=Pos,y=mutant_colored))+
      geom_tile(aes(fill = total_mean_kcal_mol))+
-   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"), values = rescale(c(min_val,0,max_val)),guide = "colorbar", limits=c(min_val,max_val))+
+   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"),na.value = "#f5f5f5", values = rescale(c(-max_val,0,max_val)),guide = "colorbar", limits=c(-max_val,max_val))+
+   geom_text(
+    data = dt_final[is.na(total_mean_kcal_mol)],
+    aes(label = "-"),
+    color = "black", size = 5, na.rm = TRUE
+  ) +
      scale_x_discrete(limits=pos_df$Pos,
                   labels=pos_df$wt_colored)+
-    geom_point(
-    data = dt_final[class %in% c("stabilizing", "destabilizing")],
-    aes(x = Pos, y = mutant_colored),
-    shape = 18, color = "black", size = 0.5
-  ) +
+   # geom_point(
+  #  data = dt_final[class %in% c("stabilizing", "destabilizing")],
+   # aes(x = Pos, y = mutant_colored),
+  #  shape = 18, color = "black", size = 0.5
+  #) +
      theme_classic()+
   theme(
   legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
@@ -278,36 +284,11 @@ rSASA_class_df[, wt_colored := paste0(
   legend.title = element_text(size = 0))+
        coord_fixed(ratio = 1)+
   ggtitle(paste0(assay," energy term ", dataset_value))
-print(p)
   
-} else if (assay == "Binding") {#max and min of alll datasets
-  min_val <- -1.53
-  max_val <- 1.53
-  
-  p<-ggplot(dt_final,aes(x=Pos,y=mutant_colored))+
-     geom_tile(aes(fill = total_mean_kcal_mol))+
-   scale_fill_gradientn(colours = c("#898ac0","#f5f5f5","#e85d47"), values = rescale(c(min_val,0,max_val)),guide = "colorbar", limits=c(min_val,max_val))+
-     scale_x_discrete(limits=pos_df$Pos,
-                  labels=pos_df$wt_colored)+
- geom_point(
-    data = dt_final[class %in% c("stabilizing", "destabilizing")],
-    aes(x = Pos, y = mutant_colored),
-    shape = 18, color = "black", size = 0.5
-  ) +
-       #labs(x = NULL, y = NULL)+
-     theme_classic()+
-    theme(
-  legend.key.size = unit(0.5, "cm"),  # Adjust the legend key size
-  legend.text = element_text(size = 8),
-  axis.text.x = element_markdown(vjust = 0.5, hjust = 1),
-  axis.text.y = element_markdown(angle = 90,vjust = 0.5, hjust = 1),
-  legend.title = element_text(size = 0))+
-       coord_fixed(ratio = 1)+
-  ggtitle(paste0(assay," energy term ", dataset_value))
 print(p)
-}
 ggsave(paste0("Data_pdzext/output_pdzext/Fig_2e_",dataset_value,"_",assay,".pdf"), width=15, height=5)
-  }}
+}
+}
 ```
 
 
