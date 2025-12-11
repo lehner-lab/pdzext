@@ -101,12 +101,70 @@ for (pca_assay in pca_assays) {
 
 #plot Figure 1d: density fitness
 ```{r}
- name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
+name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
     dt <- get(name)
     
 dt[, mut_type_plot := fifelse(mut_type %in% c("single", "double"), "missense", mut_type)]# Create a new column combining single and double into missense
 
 dt[, library := factor(library, levels = c("PDZ3_NC_", "PDZ3_C_", "PDZ3_N_", "PDZ3_"))]# Set library factor levels in the desired order
+
+#####################################counts and proportions###############################################################
+# ---- counts ----
+counts <- dt[mut_type_plot != "",
+             .N,
+             by = .(pca_type, library, mut_type_plot)]
+
+# ---- proportions ----
+counts[, proportion := N / sum(N), by = .(pca_type, library)]
+
+counts[]
+
+############################percentages of the two modes in missense and v line in plot#######################################################
+library(mclust)
+library(gridExtra)
+shared_limits <- c(-2, 1)
+
+# --- find cutoff between missense modes & proportions per facet ---
+miss <- dt[mut_type_plot == "missense" & is.finite(fitness)]
+miss <- miss[fitness >= shared_limits[1] & fitness <= shared_limits[2]]  # optional: match plot range
+
+mode_split <- miss[, {
+  x <- fitness
+  out <- tryCatch(Mclust(x, G = 2, verbose = FALSE), error = function(e) NULL)
+
+  if (is.null(out) || length(out$parameters$mean) < 2) {
+    data.table(
+      cutoff = NA_real_,
+      n_low = NA_integer_, n_high = NA_integer_,
+      prop_low = NA_real_, prop_high = NA_real_
+    )
+  } else {
+    ord   <- order(out$parameters$mean)
+    means <- out$parameters$mean[ord]
+
+    # valley (minimum density) between the two means
+    dens  <- density(x, from = min(x), to = max(x), n = 512)
+    idx   <- dens$x >= means[1] & dens$x <= means[2]
+    valley <- dens$x[idx][which.min(dens$y[idx])]
+
+    n_low  <- sum(x <= valley)
+    n_high <- sum(x > valley)
+    n_tot  <- length(x)
+
+    data.table(
+      cutoff    = valley,
+      n_low     = n_low,
+      n_high    = n_high,
+      prop_low  = n_low / n_tot,
+      prop_high = n_high / n_tot
+    )
+  }
+}, by = .(pca_type, library)]
+
+# (Optional) peek at the table
+print(mode_split)
+
+
 
 ggplot(dt[mut_type != ""], aes(x = fitness, color = mut_type_plot)) +
   geom_density(linewidth=1.5) +
@@ -122,7 +180,13 @@ ggplot(dt[mut_type != ""], aes(x = fitness, color = mut_type_plot)) +
      "missense" = "#fbb040",
     "synonymous" = "#8f9dd0"
   )) +
-  labs(x = "Fitness", y = "Density", fill = "Mutation Type")
+  labs(x = "Fitness", y = "Density", fill = "Mutation Type")+
+  geom_vline(
+    data = mode_split,
+    aes(xintercept = cutoff),
+    color = "#fbb040", linetype = "dashed", linewidth = 0.8,
+    inherit.aes = FALSE
+  )
 
 ggsave("Data_pdzext/output_pdzext/Fig_1d.pdf", width=15, height=10)
 ```
@@ -230,7 +294,7 @@ ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_1a_",pca_assay_value,library_
   }
     }
 ```
-
+#plot Extended Data Figure 1c: fitness correlation with previous studies
 ```{r}
 # Function to compare with wt and identify mutations
 find_mutated <- function(aa_seq_, wt) {
@@ -268,6 +332,9 @@ make_ddPCA_plot <- function(pca_type_label, ddPCA_type_col, fitness_col, plot_ti
   # Merge
   merged_dt <- merge(dt_ddPCA, fitnes_mine, by = "mutated_id", all = FALSE)
   
+   # n for this plot
+  n_here <- nrow(merged_dt)
+  
   # Plot
   ggplot(merged_dt, aes(x = fitness_ddPCA, y = fitness_mine)) +
     geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
@@ -275,7 +342,8 @@ make_ddPCA_plot <- function(pca_type_label, ddPCA_type_col, fitness_col, plot_ti
     stat_cor(size = 5) +
     theme_classic() +
     theme(aspect.ratio = 1) +
-    ggtitle(plot_title)
+    ggtitle(plot_title)+
+    labs(subtitle = paste("n =", n_here))
 }
 
 # Plot for Abundance
