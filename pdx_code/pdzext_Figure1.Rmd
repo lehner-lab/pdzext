@@ -68,10 +68,23 @@ for (pca_assay in pca_assays) {
   for (library in libraries) {
     name <- paste0(library, pca_assay, "_fitness_replicates")
     data <- get(name)
+    subdat <- data[, c(17, 18, 19)]
+    colnms <- colnames(subdat)
+
+ # compute counts
+    cat("\nCounts for", library, pca_assay, ":\n")
+    for (i in 1:(ncol(subdat)-1)) {
+      for (j in (i+1):ncol(subdat)) {
+        x <- subdat[[i]]
+        y <- subdat[[j]]
+        n <- sum(complete.cases(x, y))
+        cat(colnms[i], "vs", colnms[j], ": n =", n, "\n")
+      }
+    }
 
     # Build the pair plot
     plot <- ggpairs(
-      data[, c(17, 18, 19)],
+            subdat,
       lower = list(continuous = lower_fn),
       upper = list(continuous = upper_fn),
       diag = "blank"
