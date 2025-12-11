@@ -97,6 +97,8 @@ global_ylim_extended <- c(global_ylim[1] - y_margin, global_ylim[2] + y_margin)
 
 for (cfg in plot_configs) {
   data <- cfg$data[Dataset == cfg$dataset]
+  
+  n_val <- sum(!is.na(data$total_mean_kcal_mol))
 
   p <- ggplot(data, aes_string(x = cfg$x, y = "total_mean_kcal_mol")) +
     geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
@@ -105,7 +107,7 @@ for (cfg in plot_configs) {
     coord_cartesian(ylim = global_ylim_extended) +
     theme_classic() +
     theme(aspect.ratio = 1) +
-    ggtitle(cfg$title)
+    ggtitle(paste0(cfg$title, "\n(n = ", n_val, ")"))
   
   print(p)
   ggsave(cfg$file, plot = p, width = 4, height = 4)
@@ -117,6 +119,8 @@ for (cfg in plot_configs) {
 mutations_distances_annotation_median_rSASA_Binding_merged_filtered <- mutations_distances_annotation_median_rSASA_Binding_merged[dataset == "1st_order_ddg", .(id, total_mean_kcal_mol)]
 merged_dt <- merge(single_dG_Salinas_2018_pdz3_long, mutations_distances_annotation_median_rSASA_Binding_merged_filtered[, .(id, total_mean_kcal_mol)], by = "id", all = FALSE)
 
+n_val <- sum(!is.na(merged_dt$total_mean_kcal_mol))
+
   p <- ggplot(merged_dt, aes(x = Salinas_2018_single_dG, y = total_mean_kcal_mol)) +
     geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
     geom_point(size = 3) +
@@ -124,7 +128,7 @@ merged_dt <- merge(single_dG_Salinas_2018_pdz3_long, mutations_distances_annotat
     coord_cartesian(ylim = global_ylim_extended) +
     theme_classic() +
     theme(aspect.ratio = 1) +
-    ggtitle("Salinas2018")
+    ggtitle(paste0("Salinas2018\n n =", n_val))
   
   print(p)
   ggsave("Data_pdzext/output_pdzext/Fig_2c_salinas.pdf", plot = p, width = 4, height = 4)
@@ -143,6 +147,9 @@ merged_dt_folding <- merge(ddPCApaper_folding, mutations_distances_annotation_me
     theme(aspect.ratio = 1) +
     ggtitle("ddPCA_folding")
   
+  counts <- merged_dt_folding[, .N]
+print(counts)
+  
   print(p)
   ggsave("Data_pdzext/output_pdzext/Suppl_Fig_2e_folding.pdf", plot = p, width = 4, height = 4)
 ```
@@ -159,6 +166,9 @@ merged_dt_binding <- merge(ddPCApaper_binding, mutations_distances_annotation_me
     theme_classic() +
     theme(aspect.ratio = 1) +
     ggtitle("ddPCA_binding")
+  
+   counts <- merged_dt_binding[, .N]
+print(counts)
   
   print(p)
   ggsave("Data_pdzext/output_pdzext/Suppl_Fig_2e_binding.pdf", plot = p, width = 4, height = 4)
@@ -495,10 +505,9 @@ p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
    geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.5) +
   geom_line(aes(group = id), color = "black", alpha = 0.3) +
    scale_y_continuous(limits = c(-0.7,2.1)) + 
-   labs(title = assay, subtitle = p_value_label)+
+   labs(title = "Position 337", subtitle = p_value_label)+
   theme_classic() +
-   theme(aspect.ratio=1)+
-  ggtitle(assay)
+   theme(aspect.ratio=1)
 
   print(p)
     ggsave(paste0("Data_pdzext/output_pdzext/Fig_2f_337.pdf"), width=7, height=7)
@@ -534,10 +543,9 @@ p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
    geom_boxplot(width = 0.2, outlier.shape = NA, fill = NA, color = "black", size = 0.5) +
   geom_line(aes(group = id), color = "black", alpha = 0.3) +
     scale_y_continuous(limits = c(-0.7,2.1)) + 
-   labs(title = assay, subtitle = p_value_label)+
+   labs(title = "Position 368", subtitle = p_value_label)+
   theme_classic() +
-   theme(aspect.ratio=1)+
-  ggtitle(assay)
+   theme(aspect.ratio=1)
 
   print(p)
     ggsave(paste0("Data_pdzext/output_pdzext/Fig_2f_368.pdf"), width=7, height=7)
