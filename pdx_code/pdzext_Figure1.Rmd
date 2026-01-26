@@ -5,9 +5,10 @@ date: "2025-07-28"
 ---
 
 ```{r setup}
-base_dir<-"base_dir/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
+getwd()
 ```
 
 
@@ -47,7 +48,7 @@ for(library in libraries){
 }
 ```
 
-#plots Figure 1c and Extended Data Fig. 1b: replicates fitness
+#plots Figure 1c and Supplementary Fig. 1b: replicates fitness
 ```{r}
 library(ggrastr)
 library(Cairo)
@@ -191,7 +192,7 @@ ggplot(dt[mut_type != ""], aes(x = fitness, color = mut_type_plot)) +
 ggsave("Data_pdzext/output_pdzext/Fig_1d.pdf", width=15, height=10)
 ```
 
-#modify the table adding new columns for heatmap in Extended Data Fig. 1a:
+#modify the table adding new columns for heatmap in Supplementary Fig. 1a:
 ```{r}
 name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
 dt <- get(name)
@@ -237,7 +238,7 @@ dt_single[, mutant_colored := fifelse(aa_category == "positive_charge", paste0("
  assign(name,dt_single)
 ```
 
-#plot Extended Data Figure 1a: heat maps of observed fitness
+#plot Supplementary Figure 1a: heat maps of observed fitness
 ```{r}
 name <- "Suppltable_DiMSUM_fitness_STOPS_synonymous"
     dt <- get(name)
@@ -294,7 +295,7 @@ ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_1a_",pca_assay_value,library_
   }
     }
 ```
-#plot Extended Data Figure 1c: fitness correlation with previous studies
+#plot Supplementary Figure 1c: fitness correlation with previous studies
 ```{r}
 # Function to compare with wt and identify mutations
 find_mutated <- function(aa_seq_, wt) {
