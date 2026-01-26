@@ -1,3 +1,4 @@
+
 ---
 title: "Figure 2"
 output: html_document
@@ -5,7 +6,7 @@ date: "2025-07-28"
 ---
 
 ```{r setup}
-base_dir<-"base_dir/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -121,16 +122,23 @@ merged_dt <- merge(single_dG_Salinas_2018_pdz3_long, mutations_distances_annotat
 
 n_val <- sum(!is.na(merged_dt$total_mean_kcal_mol))
 
-  p <- ggplot(merged_dt, aes(x = Salinas_2018_single_dG, y = total_mean_kcal_mol)) +
-    geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
-    geom_point(size = 3) +
-    stat_cor(size = 5) +
-    coord_cartesian(ylim = global_ylim_extended) +
-    theme_classic() +
-    theme(aspect.ratio = 1) +
-    ggtitle(paste0("Salinas2018\n n =", n_val))
-  
+ ct <- cor.test(merged_dt$Salinas_2018_single_dG,
+               merged_dt$total_mean_kcal_mol,
+               method = "pearson")
+
+lab <- paste0("r = ", signif(ct$estimate, 3),
+              "\np = ", sprintf("%.3e", ct$p.value))
+
+p <- ggplot(merged_dt, aes(x = Salinas_2018_single_dG, y = total_mean_kcal_mol)) +
+  geom_smooth(method = "lm", se = FALSE, color = "lightblue", linewidth = 3) +
+  geom_point(size = 3) +
+  annotate("text", x = 1, y = 1, label = lab, hjust = 1.1, vjust = 1.1, size = 5) +
+  coord_cartesian(ylim = global_ylim_extended) +
+  theme_classic() +
+  theme(aspect.ratio = 1) +
+  ggtitle(paste0("Salinas2018\n n =", n_val))
   print(p)
+ 
   ggsave("Data_pdzext/output_pdzext/Fig_2c_salinas.pdf", plot = p, width = 4, height = 4)
 ```
 
@@ -368,10 +376,10 @@ ggsave(paste0("Data_pdzext/output_pdzext/Fig_2d_",assay,".pdf"), width=7, height
 ```
 
 
-#plot Extended Data Fig. 2a: violin plots core/surface/binding
+#plot Supplementary Fig. 2a: violin plots core/surface/binding
 ```{r}
 custom_colors <- c("surface" = "#17A2B8", "core" = "#94da55", "binding_interface"="#ff7f7f")
-
+assays<-c("Folding","Binding")
 for (assay in assays) {
   name <- paste0("mutations_distances_annotation_median_rSASA_",assay,"_merged")
     dt <- get(name)
@@ -391,6 +399,36 @@ for (assay in assays) {
     )
   }
     y_max <- max(subset_dt$total_mean_kcal_mol, na.rm = TRUE)
+    
+    
+    
+    # ---- compute exact (numeric) t-test p-values yourself ----
+  y_max <- max(subset_dt$total_mean_kcal_mol, na.rm = TRUE)
+
+  tests_dt <- data.table::rbindlist(lapply(seq_along(comparisons_list), function(i) {
+    g1 <- comparisons_list[[i]][1]
+    g2 <- comparisons_list[[i]][2]
+
+    x <- subset_dt[get(class_column) == g1, total_mean_kcal_mol]
+    y <- subset_dt[get(class_column) == g2, total_mean_kcal_mol]
+
+    tt <- t.test(x, y, paired = FALSE, alternative = "two.sided")
+
+    data.table::data.table(
+      group1 = g1,
+      group2 = g2,
+      p = tt$p.value
+    )
+  }))
+
+  # label + y positions for brackets
+  tests_dt[, label := sprintf("p = %.3e", p)]
+  tests_dt[, y.position := y_max * (1.08 + 0.10 * (.I - 1))]
+    
+    
+    
+    
+    
 y_lim <- y_max * 1.5  # or add a fixed buffer if you prefer: y_max + 1
 
 p <- ggplot(subset_dt, aes(x = .data[[class_column]], y = total_mean_kcal_mol)) +
@@ -398,10 +436,13 @@ p <- ggplot(subset_dt, aes(x = .data[[class_column]], y = total_mean_kcal_mol)) 
   geom_violin(aes(fill = .data[[class_column]]), trim = TRUE, alpha = 0.3, size = 0.1) +
   scale_color_manual(values = custom_colors) +
   scale_fill_manual(values = custom_colors) +
-  stat_compare_means(method = "t.test", 
-                           comparisons = comparisons_list,
-                           label = "p.signif",
-                           size = 10)+
+  ggpubr::stat_pvalue_manual(
+      tests_dt,
+      label = "label",
+      xmin = "group1", xmax = "group2",
+      y.position = "y.position",
+      size = 10
+    ) +
  scale_y_continuous(limits = c(min(subset_dt$total_mean_kcal_mol, na.rm = TRUE), y_lim)) +
   theme_classic() +
    theme(aspect.ratio=1)+
@@ -417,6 +458,7 @@ ggsave(paste0("Data_pdzext/output_pdzext/Suppl_Fig_2a_",assay,".pdf"), width=7, 
 #plot Extended figure 2b: correlation claculated_ddg to see changes in sign
 ```{r}
 library(ggrepel)
+assays<-c("Folding","Binding")
  dataset_all<-c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC")
 
 for (assay in assays) {
@@ -438,14 +480,24 @@ for (comp_ds in dataset_all[-1]) {
     # Build the plot
 y_lims <- if (assay == "Folding") c(-0.5, 2.5) else c(-0.25, 1.25)
 x_lims <- if (assay == "Folding") c(-0.5, 2.5) else c(-0.25, 1.25)
+
+ct <- cor.test(dt_merged$energy_comp, dt_merged$energy_base, method = "pearson")
+    cor_lab <- paste0("r = ", signif(ct$estimate, 3),
+                      "\np = ", sprintf("%.3e", ct$p.value))
+
+
+
     p <- ggplot(dt_merged,
                 aes(y = energy_base, x = energy_comp)) +
       geom_point(color = "black", alpha = 0.65) +
      geom_abline(slope = 1, intercept = 0, colour = "blue", linetype = "dashed")+
       geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
   geom_vline(xintercept = 0, linetype = "dotted", color = "gray50") +
-     stat_cor(method = "pearson",
-           label.y = 0.75, label.x = 0.25, size = 6) +
+     annotate("text",
+               x = x_lims[1] + 0.05 * diff(x_lims),
+               y = y_lims[2] - 0.10 * diff(y_lims),
+               label = cor_lab,
+               hjust = 0, vjust = 1, size = 6) +
       
         # Label only the points with opposite signs
   geom_text_repel(
@@ -550,4 +602,3 @@ p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
   print(p)
     ggsave(paste0("Data_pdzext/output_pdzext/Fig_2f_368.pdf"), width=7, height=7)
 ```
-
