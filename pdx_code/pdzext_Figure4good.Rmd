@@ -1,13 +1,13 @@
 ---
-title: "figure5 Binding energies outside the binding interface"
+title: "figure4 Binding energies outside the binding interface"
 output:
   pdf_document: default
   html_document: default
-date: "2025-07-29"
+date: "2026-01-28"
 ---
 
 ```{r setup}
-base_dir<-"~/Desktop/mount2/chidalgo/pdzext/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -26,7 +26,7 @@ mutations_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/e
 signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged.txt")
 ```
 
-#plot figure5a: manhattan plots mutations
+#plot figure4a: manhattan plots mutations
 ```{r}
 dataset_values<-c("1st_order_ddg", "dddg_N", "dddg_C", "ddddg_NC")
 name <- paste0("mutations_distances_annotation_median_rSASA_Binding_merged")
@@ -82,10 +82,10 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
   ggtitle(paste0(dataset_value," Binding mutations"))
 
 print(p)
-ggsave(paste0("Data_pdzext/output_pdzext/Fig_5a_",dataset_value,"_Binding.pdf"), width=15, height=5)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_4a_",dataset_value,"_Binding.pdf"), width=15, height=5)
   }
 ```
-#plot Figure 5b: heat maps of medians ddg&dddg&ddddg (called "energy_term")
+#plot Figure 4b: heat maps of medians ddg&dddg&ddddg (called "energy_term")
 ```{r}
     name <- "mutations_distances_annotation_median_rSASA_Binding_merged"
     dt <- get(name)
@@ -189,11 +189,11 @@ subset_dt <- merge(
   }
 
     print(p)
-ggsave(paste0("Data_pdzext/output_pdzext/Fig_5b_",dataset_value,".pdf"), width=15, height=5)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_4b_",dataset_value,".pdf"), width=15, height=5)
 }
 ```
 
-#attributes files for Figure 5c
+#attributes files for Figure 4c
 ```{r}
 # Function to create ChimeraX attribute files
 save_colors_for_chimerax <- function(data, dataset_value, chain_id = "A") {
@@ -233,9 +233,13 @@ for (dataset_value in unique(dt$dataset)) {
 ```
 
 
-#plot Figure 5d: distance to extensions
-##mutations
+###############################################################################################
+#plot Figure 4e: distance to extensions for mutations. Spearmann test and LOESS curves:
 ```{r}
+library(ggplot2)
+library(ggpubr)
+library(data.table)
+
 custom_colors <- c("positive_dddg"="#e85d47", "negative_dddg"="#898ac0")
 name <- paste0("mutations_distances_annotation_median_rSASA_Binding_merged")
 dt <- get(name)
@@ -246,51 +250,70 @@ max_abs_dddg_combined <- max(abs(dt_combined$total_mean_kcal_mol), na.rm = TRUE)
 global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
 global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
 
+# Shared Y-axis across all plots
+max_abs_dddg_combined <- max(abs(dt_combined$total_mean_kcal_mol), na.rm = TRUE)
+# Shared X across plots (use both distance columns)
+global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue,
+                      dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue,
+                      dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+
 for (dataset_value in dataset_values) {
-  subset_dt <- dt[dataset == dataset_value]
-  subset1_dt<-subset_dt[total_mean_kcal_mol<0]
-  subset2_dt<-subset_dt[total_mean_kcal_mol>0]
+  subset_dt  <- dt[dataset == dataset_value]
+  subset1_dt <- subset_dt[total_mean_kcal_mol < 0]
+  subset2_dt <- subset_dt[total_mean_kcal_mol > 0]
   
-if (dataset_value == "dddg_N") {
+  if (dataset_value == "dddg_N") {
     xcol <- "min_disAll_NtermAll_byResidue"
     xlab <- "3D Distance to N-term"
-    subtitle <- " - Distance to N-term"
+    subtitle <- "Binding - Distance to N-term"
   } else {
     xcol <- "min_disAll_ChelixAll_byResidue"
     xlab <- "3D Distance to C-helix"
-    subtitle <- " - Distance to C-helix"
+    subtitle <- "Binding - Distance to C-helix"
   }
 
- subset_dt[,  x := get(xcol)]
+  subset_dt[,  x := get(xcol)]
   subset1_dt[, x := get(xcol)]
   subset2_dt[, x := get(xcol)]
 
   p <- ggplot() +
+    # Points (negative = blue, positive = red)
     geom_point(data = subset1_dt,
                aes(x = x, y = abs(total_mean_kcal_mol)),
-               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4,shape=16) +
+               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4, shape = 16) +
     geom_point(data = subset2_dt,
                aes(x = x, y = abs(total_mean_kcal_mol)),
-               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4,shape=16) +
+               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4, shape = 16) +
 
+    # Spearman corrs only: all (black), positive (red), negative (blue)
     stat_cor(data = subset_dt,  aes(x = x, y = abs(total_mean_kcal_mol)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.95,
+             method = "spearman",
+             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined*0.95,
              colour  = "black", size = 6) +
     stat_cor(data = subset2_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.80,
+             method = "spearman",
+             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined*0.80,
              colour  = custom_colors["positive_dddg"], size = 6) +
     stat_cor(data = subset1_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.65,
+             method = "spearman",
+             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined*0.65,
              colour  = custom_colors["negative_dddg"], size = 6) +
-    
-    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
 
-#use dataset-specific limits
-    scale_x_continuous(limits = c(min(subset_dt$x), max(subset_dt$x)),
-                       breaks = seq(5, 25, 5)) +
-    scale_y_continuous(limits = c(0, max_abs_dddg_combined),
+    # Two smooth curves (separate fits for negative=blue and positive=red)
+    geom_smooth(data = subset1_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
+                se = TRUE, colour = custom_colors["negative_dddg"],na.rm = TRUE) +
+    geom_smooth(data = subset2_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
+                se = TRUE, colour = custom_colors["positive_dddg"],na.rm = TRUE) +
+
+    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
+    scale_x_continuous(limits = c(0, global_x_max),expand = c(0, 0), breaks = seq(5, 25, 5)) +
+    scale_y_continuous(limits = c(0, max_abs_dddg_combined),expand = c(0, 0),
                        breaks = seq(0, 0.8, 0.2)) +
-    labs(x = xlab, y = "dddg (kcal/mol)",
+    labs(x = xlab, y = "|ΔΔG| (kcal/mol)",
          title = paste0(dataset_value, ": ", subtitle)) +
     theme_classic() +
     theme(aspect.ratio = 1,
@@ -298,67 +321,91 @@ if (dataset_value == "dddg_N") {
           axis.title = element_text(size = 15))
 
   print(p)
- ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_mutations_",dataset_value,".pdf"), width=8, height=8)
+   ggsave(paste0("Data_pdzext/output_pdzext/Fig_4e_mutations_",dataset_value,".pdf"), width=8, height=8)
 }
+
 ```
 
-##medians
+###############################################################################################
+#Extended Data Figure 4 binding Spearmann test and LOESS curves:
 ```{r}
-#name <- paste0("signif_muts_bysite_distances_annotation_median_Binding_merged")
+library(ggplot2)
+library(ggpubr)
+library(data.table)
+
+# Colors: positive = red, negative = blue
+custom_colors <- c("positive_dddg"="#e85d47", "negative_dddg"="#898ac0")
+
 name <- paste0("signif_muts_bysite_distances_annotation_median_rSASA_Binding_merged")
 dt <- get(name)
-dataset_values<-c("dddg_N", "dddg_C")
-dt_combined <- dt[dataset %in% c("dddg_N", "dddg_C")]
 
+dataset_all <- c("dddg_N", "dddg_C")
+dt_combined <- dt[dataset %in% dataset_all]
+
+# Shared Y-axis across all plots (use |median_energy|)
 max_abs_dddg_combined <- max(abs(dt_combined$median_energy), na.rm = TRUE)
-global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
-global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue, dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+# Shared X across plots (use both distance columns)
+global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue,
+                      dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
+global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue,
+                      dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
 
-for (dataset_value in dataset_values) {
-  subset_dt <- dt[dataset == dataset_value]
-  subset1_dt<-subset_dt[median_energy<0]
-  subset2_dt<-subset_dt[median_energy>0]
+for (dataset_value in dataset_all) {
+  subset_dt  <- dt[dataset == dataset_value]
+  subset1_dt <- subset_dt[median_energy < 0]  # negative
+  subset2_dt <- subset_dt[median_energy > 0]  # positive
   
-if (dataset_value == "dddg_N") {
+  if (dataset_value == "dddg_N") {
     xcol <- "min_disAll_NtermAll_byResidue"
     xlab <- "3D Distance to N-term"
-    subtitle <- "Folding - Distance to N-term"
+    subtitle <- "Binding - Distance to N-term"
   } else {
     xcol <- "min_disAll_ChelixAll_byResidue"
     xlab <- "3D Distance to C-helix"
-    subtitle <- "Folding - Distance to C-helix"
+    subtitle <- "Binding - Distance to C-helix"
   }
 
- subset_dt[,  x := get(xcol)]
+  subset_dt[,  x := get(xcol)]
   subset1_dt[, x := get(xcol)]
   subset2_dt[, x := get(xcol)]
 
   p <- ggplot() +
+    # Points (negative = blue, positive = red)
     geom_point(data = subset1_dt,
                aes(x = x, y = abs(median_energy)),
-               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4,shape=16) +
+               colour = custom_colors["negative_dddg"], alpha = 0.7, size = 4, shape = 16) +
     geom_point(data = subset2_dt,
                aes(x = x, y = abs(median_energy)),
-               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4,shape=16) +
+               colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4, shape = 16) +
 
+    # Spearman correlations only: all (black), positive (red), negative (blue)
     stat_cor(data = subset_dt,  aes(x = x, y = abs(median_energy)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.95,
+             method = "spearman",
+             label.x = global_x_min + 0.05 * (global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined * 0.95,
              colour  = "black", size = 6) +
     stat_cor(data = subset2_dt, aes(x = x, y = abs(median_energy)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.80,
+             method = "spearman",
+             label.x = global_x_min + 0.05 * (global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined * 0.80,
              colour  = custom_colors["positive_dddg"], size = 6) +
     stat_cor(data = subset1_dt, aes(x = x, y = abs(median_energy)),
-             label.x = 10, label.y = max_abs_dddg_combined*0.65,
+             method = "spearman",
+             label.x = global_x_min + 0.05 * (global_x_max - global_x_min),
+             label.y = max_abs_dddg_combined * 0.65,
              colour  = custom_colors["negative_dddg"], size = 6) +
 
-    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
+    # Two smooth curves (LOESS by default): negative = blue, positive = red
+    geom_smooth(data = subset1_dt, aes(x = x, y = abs(median_energy)),
+                se = TRUE, colour = custom_colors["negative_dddg"],na.rm = TRUE) +
+    geom_smooth(data = subset2_dt, aes(x = x, y = abs(median_energy)),
+                se = TRUE, colour = custom_colors["positive_dddg"],na.rm = TRUE) +
 
-    #use dataset-specific limits
-    scale_x_continuous(limits = c(min(subset_dt$x), max(subset_dt$x)),
-                       breaks = seq(5, 25, 5)) +
+    geom_hline(yintercept = 0, colour = "blue", linetype = "dashed") +
+    scale_x_continuous(limits = c(0, global_x_max), breaks = seq(5, 25, 5),expand = c(0, 0)) +
     scale_y_continuous(limits = c(0, max_abs_dddg_combined),
-                       breaks = seq(0, 0.8, 0.2)) +
-    labs(x = xlab, y = "dddg (kcal/mol)",
+                       breaks = seq(0, 0.8, 0.2),expand = c(0, 0)) +
+    labs(x = xlab, y = "|ΔΔG| (kcal/mol)",
          title = paste0(dataset_value, ": ", subtitle)) +
     theme_classic() +
     theme(aspect.ratio = 1,
@@ -366,8 +413,8 @@ if (dataset_value == "dddg_N") {
           axis.title = element_text(size = 15))
 
   print(p)
- ggsave(paste0("Data_pdzext/output_pdzext/Fig_5d_medians_",dataset_value,".pdf"), width=8, height=8)
-
+  ggsave(paste0("Data_pdzext/output_pdzext/Extended_Data_Fig_4_medians_binding_",dataset_value,".pdf"), width=8, height=8)
 }
+
 ```
 
