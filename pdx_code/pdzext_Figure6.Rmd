@@ -3,11 +3,11 @@ title: "figure6 allostery"
 output:
   pdf_document: default
   html_document: default
-date: "2025-02-07"
+date: "2026-01-28"
 ---
 
 ```{r setup}
-base_dir<-"~base_dir/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -89,9 +89,21 @@ threshold_abs_median <- median_abs + mad_abs
     subset_dt[binding_interfase==T,allo_decay_residual:=NA]
     subset_dt[,label_id:=wt_Pos]
     
+    # ----- Spearman ONLY for scHAmin_ligand > 5 -----
+  spearman_df <- subset_dt[
+    scHAmin_ligand > 5 &
+    !is.na(scHAmin_ligand) &
+    !is.na(abs_total_mean_kcal_mol)
+  ]
+    cat("\nDataset:", dataset_value, "- Spearman (scHAmin_ligand > 5)\n")
+    print(cor.test(spearman_df$scHAmin_ligand,
+                   spearman_df$abs_total_mean_kcal_mol,
+                   method = "spearman"))
+    
+    
    # Plot results
       p<-ggplot(subset_dt, aes(x=scHAmin_ligand, y=abs(total_mean_kcal_mol)))+
-        geom_point(data=subset_dt[scHAmin_ligand>5 & Pos != "373"], color="black",alpha=0.2,size=2)+
+        geom_point(data=subset_dt[scHAmin_ligand>5 & Pos != "312"], color="black",alpha=0.2,size=2)+
         geom_point(data=subset_dt[scHAmin_ligand<=5], alpha=0.3, color="#ff7f7f", size=2)+#binding interface residues in red
          geom_point(data=subset_dt[Pos=="312"], alpha=0.7, color="magenta", size=2)+#mutations for residue 312(change for checking any residue)
       
@@ -99,13 +111,23 @@ threshold_abs_median <- median_abs + mad_abs
       geom_hline(yintercept=threshold_abs_median, color = "#9999ff", linetype = "dashed")+#threshold cut off
       theme_classic()+
          theme(aspect.ratio=1)+
+        # Spearman label (only scHAmin_ligand > 5)
+    stat_cor(
+      data = spearman_df,
+      aes(x = scHAmin_ligand, y = abs_total_mean_kcal_mol),
+      method = "spearman",
+      p.accuracy = 1e-100,
+  r.accuracy = 0.01,
+      colour  = "black",
+      size = 6
+    ) +
      
       xlab("minimum distance to the ligand (A)")+
       ylab("abs(total_mean_kcal_mol)")+
       ggtitle(paste0(dataset_value))
       
       print(p)
-      ggsave(paste0("Data_pdzext/output_pdzext/Fig_6a_",dataset_value,".pdf"),width=8, height=5)
+      #ggsave(paste0("Data_pdzext/output_pdzext/Fig_6a_",dataset_value,".pdf"),width=8, height=5)
       
       all_ddg_table_abs_allo_noBI<-rbind(all_ddg_table_abs_allo_noBI, subset_dt)#create a data.table with the decay curve fitting results
 }
@@ -318,8 +340,8 @@ for (dataset_value in dataset_values) {
      scale_color_manual(values = custom_colors) +
     geom_hline(yintercept = 0.2, color = "blue", linetype = "dashed") +
     
-    # Correlation for all
-    stat_cor(data = subset_dt_unique, aes(x = abs(median_energy), y = rSASA_1be9), color = "black",size=10,label.x = 0, label.y = max(subset_dt_unique$rSASA_1be9, na.rm = TRUE)*0.9,
+    # # Correlation for all
+    stat_cor(data = subset_dt_unique, aes(x = abs(median_energy), y = rSASA_1be9), method = "spearman", color = "black",size=10,label.x = 0, label.y = max(subset_dt_unique$rSASA_1be9, na.rm = TRUE)*0.9,
            hjust = 0) +
     
     theme_classic()+
