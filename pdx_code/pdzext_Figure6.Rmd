@@ -391,3 +391,259 @@ p <- ggplot(subset_dt, aes(x = dataset, y = total_mean_kcal_mol)) +
   print(p)
     ggsave(paste0("Data_pdzext/output_pdzext/Fig_6g.pdf"), width=7, height=7)
 ```
+
+#table to compare better allosteric hotspots with rSASA. only residues outside binding interface (not BI)
+```{r}
+#reduce to unique Pos the table containing the info i want(was for mutations)
+name <- ("all_ddg_table_abs_allo_noBI")
+dt <- get(name)
+subset_dt <- unique(dt[, .(dataset,Pos, rSASA_1be9,binding_interfase, allo_hotspot = significant_allost_residue)])
+subset_dt<-subset_dt[binding_interfase==FALSE]
+
+#add a column structure_location for core/surface
+subset_dt[, structure_location := fifelse(rSASA_1be9 < 0.2, "core", "surface")]
+
+#add a column if conserved allo_hotspot
+conserved_allo_hotspots<-c("318","329","330","336","341","347") #defined as allo_hotspot in at least 3 context
+subset_dt[, conserved_allo_hotspot := as.character(Pos) %in% conserved_allo_hotspots]
+
+#add a column if not conserved allo_hotspot
+subset_dt[, not_conserved_allo_hotspot := allo_hotspot==TRUE &!(as.character(Pos) %in% conserved_allo_hotspots)]
+
+assign("allo_hotspots_table", subset_dt)
+```
+
+#fisher test allosteric hotspots enriched in core or not? for all the libraries together. 
+```{r}
+name<-  "allo_hotspots_table"
+dt<-get(name)
+
+dt[, allo_hotspot := factor(allo_hotspot, levels = c("TRUE","FALSE"))]
+dt[, structure_location := factor(structure_location, levels = c("core","surface"))]
+#table like contingency matrix for fisher test
+allo_hotspots_counts <- with(dt, table(allo_hotspot, structure_location))
+print(allo_hotspots_counts)
+
+fisher_hotspots_core <- fisher.test(allo_hotspots_counts)
+print(fisher_hotspots_core)
+
+#which are the 8 allo_hotspots in the surface?
+print(surface_allo <- dt[allo_hotspot == TRUE & structure_location == "surface", .(Pos, dataset)])
+
+#odds_signif
+allo_hotspots_in_core_or<-fisher_hotspots_core$estimate
+allo_hotspots_in_surface_or<-1/allo_hotspots_in_core_or
+
+#p_value
+allo_hotspots_in_core_p<-fisher_hotspots_core$p.value
+
+plot_df <- data.frame(
+  group    = c("Core", "Surface"),
+  log2_or  = c(log2(allo_hotspots_in_core_or), log2(allo_hotspots_in_surface_or)),
+  p_value = allo_hotspots_in_core_p
+)
+
+p_value_label <- paste0("one-sided Fisher’s exact test p = ", signif(fisher_hotspots_core$p.value, 3))
+
+ggplot(plot_df, aes(x = group, y = log2_or)) +
+  geom_col(width = 0.2, show.legend = FALSE) +
+  
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = NULL, y = "log2(odds ratio)", title = "Core vs Surface enrichment for allo_hotspots",
+       subtitle = p_value_label) +
+  theme_classic(base_size = 12) +
+  theme(plot.title.position = "plot")
+#ggsave(paste0("Data_pdzext/output_pdzext/Extended_Data_Fig_4b.pdf"), width=8, height=5)
+
+```
+
+
+#violin plot for rSASA in hotspots  compared with not hotspots
+```{r}
+#custom_colors <- c("surface" = "#17A2B8", "core" = "#94da55", "binding_interface"="#ff7f7f")
+
+
+  name <- "allo_hotspots_table"
+    dt <- get(name)
+   
+  
+  
+  dt[, allo_hotspot := factor(
+  allo_hotspot,
+  levels = c("FALSE", "TRUE")
+)]
+  
+  counts <- dt[, .N, by = allo_hotspot]
+print(counts)
+    
+    comparisons_list <- list(
+      c("FALSE", "TRUE")
+    )
+
+ y_max <- max(dt$rSASA_1be9, na.rm = TRUE)
+y_lim <- y_max * 1.5  # or add a fixed buffer if you prefer: y_max + 1 
+
+p <- ggplot(dt, aes(x = allo_hotspot, y = rSASA_1be9)) +
+  geom_jitter(aes(color = allo_hotspot), width = 0.2, alpha = 0.7, size = 0.1) +
+  geom_violin(aes(fill = allo_hotspot), trim = TRUE, alpha = 0.3, size = 0.1) +
+ #scale_color_manual(values = custom_colors) +
+  #scale_fill_manual(values = custom_colors) +
+  stat_compare_means(method = "t.test", 
+                           comparisons = comparisons_list,
+                           label = "p.format",
+                           size = 10)+
+ scale_y_continuous(limits = c(min(dt$rSASA_1be9, na.rm = TRUE), y_lim)) +
+  theme_classic() +
+   theme(aspect.ratio=1)+
+   geom_hline(yintercept = 0.2, color = "blue", linetype = "dashed") 
+  
+  #labs(
+   # title = "two-sided unpaired Student’s t-tests; **** = p ≤ 0.0001"
+    
+  #) 
+  
+
+  print(p)
+#ggsave(paste0("Data_pdzext/output_pdzext/Extended_Data_Fig_4c.pdf"), width=8, height=5)
+
+```
+
+
+#fisher test allosteric hotspots enriched in core or not? one test for each library:
+```{r}
+name <- "allo_hotspots_table"
+dt <- get(name)
+
+
+dt[, allo_hotspot := as.character(allo_hotspot) == "TRUE",levels = c("TRUE","FALSE")]
+
+dt[, structure_location := factor(structure_location,
+                                  levels = c("core","surface"))] 
+# Build table per dataset
+counts_by_dataset <- dt[, as.data.table(table(allo_hotspot, structure_location)), by = dataset]
+
+# Reshape wide
+counts_wide <- dcast(counts_by_dataset, dataset + allo_hotspot ~ structure_location, value.var = "N")
+counts_wide[, allo_hotspot := factor(allo_hotspot, levels = c("TRUE","FALSE"))]
+setorder(counts_wide, dataset, allo_hotspot)
+
+print(counts_wide)
+
+
+# 3) Per-dataset Fisher’s exact test (two-sided)
+fisher_by_dataset <- dt[, {
+  tab <- table(allo_hotspot, structure_location)  # rows: TRUE/FALSE; cols: core/surface
+  fres <- fisher.test(tab)                        # two-sided
+  data.table(
+    odds_ratio   = as.numeric(fres$estimate),
+    log2_or      = log2(as.numeric(fres$estimate)),
+    p_two_sided  = fres$p.value
+  )
+}, by = dataset]
+
+print(fisher_by_dataset)
+
+fisher_by_dataset[,log2_or_surface:=-log2_or]
+
+
+
+custom_colors <- c("1st_order_ddg"="blue","calculated_ddg_N"="#d783ffff","calculated_ddg_C"="#d4fb79ff",  "calculated_ddg_NC"="#d6d6d6ff")
+plot_df <- rbind(
+  fisher_by_dataset[, .(dataset, facet = "Core",    y =  log2_or, p_two_sided)],
+  fisher_by_dataset[, .(dataset, facet = "Surface", y = -log2_or, p_two_sided)]
+)
+
+# Truncate ±Inf to a finite cutoff for plotting (and optionally label)
+cutoff <- 5
+plot_df[, y_plot := fifelse(is.infinite(y), ifelse(y > 0,  cutoff, -cutoff), y)]
+plot_df[, trunc_label := fifelse(is.infinite(y), ifelse(y > 0, paste0("> ", cutoff), paste0("< -", cutoff)), NA_character_)]
+
+plot_df[,dataset:=factor(dataset,levels = c("1st_order_ddg", "calculated_ddg_N", "calculated_ddg_C", "calculated_ddg_NC"))]
+plot_df[, significant_p := p_two_sided < 0.05]
+
+
+
+ggplot(plot_df, aes(x = dataset, y = y_plot, fill = dataset,color=significant_p)) +
+   scale_fill_manual(values=custom_colors)+
+  scale_color_manual("p<0.05", values=c("grey80", "black"))+
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  # label truncated bars
+  geom_text(aes(label = trunc_label), vjust = -0.4, na.rm = TRUE, size = 3) +
+  facet_wrap(~ facet, ncol = 2, scales = "fixed") +
+  labs(
+    x = NULL,
+    y = "log2(OR)",
+    title = "Core vs Surface enrichment among allo_hotspots by dataset",
+    subtitle = paste0("Bars truncated at ±", cutoff)
+  ) +
+  theme_classic(base_size = 12) +
+  theme(plot.title.position = "plot",
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+```
+
+
+
+
+#fisher test more conserved allosteric hotspots enriched in core or not? for all the libraries together.
+```{r}
+name<-  "allo_hotspots_table"
+dt<-get(name)
+
+dt[, conserved_allo_hotspot := factor(conserved_allo_hotspot, levels = c("TRUE","FALSE"))]
+dt[, structure_location := factor(structure_location, levels = c("core","surface"))]
+#table like contingency matrix for fisher test
+conserved_allo_hotspots_counts <- with(dt, table(conserved_allo_hotspot, structure_location))
+print(conserved_allo_hotspots_counts)
+
+fisher_conserved_hotspots_core <- fisher.test(conserved_allo_hotspots_counts)
+print(fisher_conserved_hotspots_core)
+
+#which are theconserved_ allo_hotspots in the surface?
+print(surface_conserved_allo <- dt[conserved_allo_hotspot == TRUE & structure_location == "surface", .(Pos, dataset)])
+
+#odds_signif
+allo_hotspots_in_core_or<-fisher_hotspots_core$estimate
+allo_hotspots_in_surface_or<-1/allo_hotspots_in_core_or
+
+#p_value
+allo_hotspots_in_core_p<-fisher_hotspots_core$p.value
+```
+
+#fisher to test if more conserved hot spots tend to be in the core more than not_conserved
+```{r}
+name="allo_hotspots_table"
+dt<-get(name)
+
+subset_dt<-dt[conserved_allo_hotspot%in%TRUE | not_conserved_allo_hotspot%in%TRUE]
+subset_dt[, conserved := conserved_allo_hotspot%in%TRUE]
+
+subset_dt[, conserved := factor(conserved, levels = c(TRUE,FALSE))]
+subset_dt[, structure_location := factor(structure_location, levels = c("core","surface"))]
+
+#table like contingency matrix for fisher test
+conserved_core <- with(subset_dt, table(conserved, structure_location))
+print(conserved_core)
+
+fisher_conserved_core <- fisher.test(conserved_core)
+print(fisher_conserved_core)
+
+```
+
+######################
+###enrichment in sector residues
+########################
+
+```{r}
+sector_positions <- c(329, 330, 336, 338, 341, 347, 353, 359, 362, 367, 375)
+allo_hotspots_table[, sector := Pos %in% sector_positions]
+allo_hotspots_table[, {
+  tab <- table(allo_hotspot, sector)
+  list(
+    p_value = fisher.test(tab)$p.value,
+    odds_ratio = fisher.test(tab)$estimate
+  )
+}, by = dataset]
+```
+
