@@ -1,11 +1,11 @@
 ---
 title: "fig3 folding dddg N and C"
 output: html_document
-date: "2025-07-29"
+date: "2026-01-28"
 ---
 
 ```{r setup}
-base_dir<-"~basedir/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -251,6 +251,21 @@ global_x_min <- min(c(dt_combined$min_disAll_NtermAll_byResidue,
 global_x_max <- max(c(dt_combined$min_disAll_NtermAll_byResidue,
                       dt_combined$min_disAll_ChelixAll_byResidue), na.rm = TRUE)
 
+fmt_p <- function(p, digits = 3) {
+  # scientific with chosen digits; avoids "<2e-16"
+  format(p, digits = digits, scientific = TRUE)
+}
+
+get_spearman_label <- function(d) {
+  ct <- suppressWarnings(cor.test(d$x, abs(d$total_mean_kcal_mol),
+                                 method = "spearman", exact = FALSE))
+  r  <- unname(ct$estimate)
+  p  <- ct$p.value
+  paste0("rho = ", formatC(r, digits = 2, format = "f"),
+         ", p = ", fmt_p(p, digits = 3))
+}
+
+
 
 for (dataset_value in dataset_values) {
   subset_dt  <- dt[dataset == dataset_value]
@@ -270,6 +285,10 @@ for (dataset_value in dataset_values) {
   subset_dt[,  x := get(xcol)]
   subset1_dt[, x := get(xcol)]
   subset2_dt[, x := get(xcol)]
+  
+  lab_all <- get_spearman_label(subset_dt)
+lab_pos <- get_spearman_label(subset2_dt)
+lab_neg <- get_spearman_label(subset1_dt)
 
   p <- ggplot() +
     # Points (negative = blue, positive = red)
@@ -281,21 +300,18 @@ for (dataset_value in dataset_values) {
                colour = custom_colors["positive_dddg"], alpha = 0.7, size = 4, shape = 16) +
 
     # Spearman corrs only: all (black), positive (red), negative (blue)
-    stat_cor(data = subset_dt,  aes(x = x, y = abs(total_mean_kcal_mol)),
-             method = "spearman",
-             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
-             label.y = max_abs_dddg_combined*0.95,
-             colour  = "black", size = 6) +
-    stat_cor(data = subset2_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
-             method = "spearman",
-             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
-             label.y = max_abs_dddg_combined*0.80,
-             colour  = custom_colors["positive_dddg"], size = 6) +
-    stat_cor(data = subset1_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
-             method = "spearman",
-             label.x = global_x_min + 0.05*(global_x_max - global_x_min),
-             label.y = max_abs_dddg_combined*0.65,
-             colour  = custom_colors["negative_dddg"], size = 6) +
+        annotate("text",
+           x = global_x_min + 0.05*(global_x_max - global_x_min),
+           y = max_abs_dddg_combined*0.95,
+           label = lab_all, colour = "black", size = 6, hjust = 0) +
+  annotate("text",
+           x = global_x_min + 0.05*(global_x_max - global_x_min),
+           y = max_abs_dddg_combined*0.80,
+           label = lab_pos, colour = custom_colors["positive_dddg"], size = 6, hjust = 0) +
+  annotate("text",
+           x = global_x_min + 0.05*(global_x_max - global_x_min),
+           y = max_abs_dddg_combined*0.65,
+           label = lab_neg, colour = custom_colors["negative_dddg"], size = 6, hjust = 0) +
 
     # Two smooth curves (separate fits for negative=blue and positive=red)
     geom_smooth(data = subset1_dt, aes(x = x, y = abs(total_mean_kcal_mol)),
@@ -314,9 +330,11 @@ for (dataset_value in dataset_values) {
           axis.text  = element_text(size = 15),
           axis.title = element_text(size = 15))
 
+
   print(p)
   ggsave(paste0("Data_pdzext/output_pdzext/Fig_3e_mutations_",dataset_value,".pdf"), width=8, height=8)
 }
+
 ```
 
 #Extended Data Figure 3 folding Spearmann test and LOESS curves:
@@ -413,4 +431,3 @@ for (dataset_value in dataset_all) {
   ggsave(paste0("Data_pdzext/output_pdzext/Extended_Data_Fig_3_medians_folding_",dataset_value,".pdf"), width=8, height=8)
 }
 ```
-
