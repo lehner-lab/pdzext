@@ -1,11 +1,11 @@
 ---
-title: "Figure 4 binding interface"
+title: "Figure 5 binding interface"
 output: html_document
-date: "2025-07-29"
+date: "2026-01-28"
 ---
 
 ```{r setup}
-base_dir<-"~basedir/"
+base_dir<-"/base_dir"
 knitr::opts_knit$set(root.dir = base_dir)
 setwd(base_dir)
 ```
@@ -26,7 +26,7 @@ signif_muts_bysite_distances_annotation_median_Binding_merged<-fread("Data_pdzex
 mutations_distances_annotation_median_Binding_merged<-fread("Data_pdzext/energies_pdzext/thirdOrder_mutations_distances_annotation_median_rSASA_Binding_merged.txt")
 ```
 
-#plot figure 4a: ddg&dddg&ddddg (called energy_term) in binding interface
+#plot figure 5a: ddg&dddg&ddddg (called energy_term) in binding interface
 ```{r}
     name <- "mutations_distances_annotation_median_Binding_merged"
     dt <- get(name)
@@ -103,11 +103,11 @@ subset_dt_all <- merge(
       ggtitle(paste0("Binding_",dataset_value," median energy_term and fdr_enrichment_muts<0.1 "))
     
     print(p)
-ggsave(paste0("Data_pdzext/output_pdzext/Fig_4a_",dataset_value,".pdf"), width=8, height=5)
+ggsave(paste0("Data_pdzext/output_pdzext/Fig_5a_",dataset_value,".pdf"), width=8, height=5)
 }
 ```
 
-#plot Figure 4b: heatmaps of interface residues
+#plot Figure 5b: heatmaps of interface residues
 ```{r}
   name <- "mutations_distances_annotation_median_Binding_merged"
     dt <- get(name)
@@ -160,10 +160,10 @@ p<-ggplot(subset1_dt,aes(x=dataset,y=mutant_colored,fill=total_mean_kcal_mol))+
   ggtitle("Energy term heatmaps for interface residues")
    
   print(p) 
-ggsave("Data_pdzext/output_pdzext/Fig_4b.pdf", width=15, height=5)
+ggsave("Data_pdzext/output_pdzext/Fig_5b.pdf", width=15, height=5)
 ```
 
-#attributes files for Figure 4c
+#attributes files for Figure 5c
 ```{r}
 # Function to create ChimeraX attribute files
 save_colors_for_chimerax <- function(data, dataset_value, chain_id = "A") {
